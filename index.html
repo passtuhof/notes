@@ -428,6 +428,56 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 @keyframes tgMsgPop{from{transform:translateY(4px) scale(.985);opacity:.35}to{transform:translateY(0) scale(1);opacity:1}}
 @media(max-width:900px){#sidebar{width:100%!important;min-width:100%!important}#chat{position:absolute!important;inset:0!important;transform:translateX(100%);transition:transform .26s cubic-bezier(.2,.8,.2,1)!important}.chatOpen #chat{transform:translateX(0)!important}#backBtn{display:block!important}#topbar{height:78px!important}.chatItem{height:76px!important}.chatPreview{max-width:210px!important}.msg{max-width:84%!important}#attachSheet{bottom:8px!important}}
 
+
+/* v2.0 UI FIX — системные разделы перенесены в строку вкладок */
+#tabs{
+  min-height:58px!important;
+  height:58px!important;
+  padding:8px 10px!important;
+  gap:8px!important;
+  background:rgba(242,242,247,.94)!important;
+  border-bottom:1px solid rgba(60,60,67,.16)!important;
+  overflow-x:auto!important;
+  scrollbar-width:none!important;
+}
+#tabs::-webkit-scrollbar{display:none!important}
+#tabs .tab.systemTab{
+  height:40px!important;
+  min-width:max-content!important;
+  padding:0 14px!important;
+  border-radius:20px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  background:#fff!important;
+  color:#111!important;
+  border:1px solid rgba(60,60,67,.12)!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)!important;
+  font-size:15px!important;
+  font-weight:650!important;
+}
+#tabs .tab.systemTab.active{
+  background:#229ED9!important;
+  color:#fff!important;
+  border-color:#229ED9!important;
+  box-shadow:0 4px 12px rgba(34,158,217,.26)!important;
+}
+#tabs .tab.systemTab .tabIcon{font-size:16px!important;line-height:1!important}
+#tabs .tab.systemTab b{
+  min-width:19px!important;
+  height:19px!important;
+  padding:0 5px!important;
+  border-radius:10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:rgba(0,0,0,.08)!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+#tabs .tab.systemTab.active b{background:rgba(255,255,255,.24)!important;color:#fff!important}
+.chatItem.system{display:none!important}
+
 </style>
 </head>
 <body>
@@ -608,25 +658,29 @@ function visibleMessages(topic){
 function lastMessage(topic){ const msgs=topic.messages.filter(m=>!m.deletedAt); if(!msgs.length) return "Нет сообщений"; const pins=msgs.filter(m=>m.pinned).length; const last=msgs.at(-1); return (pins?"📌 ":"") + (last.text || attachmentLabel(last) || "Вложение"); }
 function render(){ renderGroups(); renderTopics(); renderMessages(); }
 function renderGroups(){
+  // v2.0 UI FIX: здесь теперь ТОЛЬКО системные вкладки.
+  // Группы больше не рисуются в этой строке, чтобы рядом с «Все» были именно:
+  // Все / Избранное / Архив / Корзина
   const systemTabs=[
-    {key:"all", label:"Все"},
-    {key:"favorites", label:"Избранное"},
-    {key:"archive", label:"Архив"},
-    {key:"trash", label:"Корзина"}
+    {key:"all", label:"Все", icon:"💬"},
+    {key:"favorites", label:"Избранное", icon:"⭐"},
+    {key:"archive", label:"Архив", icon:"📦"},
+    {key:"trash", label:"Корзина", icon:"🗑"}
   ];
-  if(currentGroupFilter!=="Все"&&!state.groups.some(g=>g.name===currentGroupFilter)) currentGroupFilter="Все";
+  currentGroupFilter="Все";
   els.tabs.innerHTML="";
 
   systemTabs.forEach(tabData=>{
     const btn=document.createElement("button");
     const active =
-      (tabData.key==="all" && currentView==="topic" && currentGroupFilter==="Все" && !showFavoritesOnly && !showTrash) ||
+      (tabData.key==="all" && currentView==="topic" && !showFavoritesOnly && !showTrash) ||
       (tabData.key==="favorites" && currentView==="favorites") ||
       (tabData.key==="archive" && currentView==="archive") ||
       (tabData.key==="trash" && currentView==="trash");
     btn.className="tab systemTab"+(active?" active":"");
     btn.type="button";
-    btn.textContent=tabData.label;
+    const count = tabData.key==="favorites" ? countFavorites() : tabData.key==="archive" ? countArchive() : tabData.key==="trash" ? countTrash() : "";
+    btn.innerHTML=`<span class="tabIcon">${tabData.icon}</span><span>${tabData.label}</span>${count?`<b>${count}</b>`:""}`;
     btn.onclick=()=>{
       closeMenus();
       currentGroupFilter="Все";
@@ -635,7 +689,7 @@ function renderGroups(){
         showFavoritesOnly=false;
         showTrash=false;
         const firstVisible=sortedTopicsAll().find(t=>!t.archived);
-        if(firstVisible && (!currentTopicId || currentTopic()?.archived)) currentTopicId=firstVisible.id;
+        if(firstVisible) currentTopicId=firstVisible.id;
       } else if(tabData.key==="favorites"){
         currentView="favorites";
         showFavoritesOnly=true;
@@ -644,6 +698,8 @@ function renderGroups(){
         currentView="archive";
         showFavoritesOnly=false;
         showTrash=false;
+        const firstArchived=sortedTopicsAll().find(t=>t.archived);
+        currentTopicId=firstArchived?firstArchived.id:currentTopicId;
       } else if(tabData.key==="trash"){
         currentView="trash";
         showFavoritesOnly=false;
@@ -655,26 +711,8 @@ function renderGroups(){
     els.tabs.appendChild(btn);
   });
 
-  state.groups.forEach(g=>{
-    const btn=document.createElement("button");
-    const active=currentView==="topic" && currentGroupFilter===g.name && !showFavoritesOnly && !showTrash;
-    btn.className="tab"+(active?" active":"");
-    btn.type="button";
-    btn.textContent=g.name;
-    btn.onclick=()=>{
-      closeMenus();
-      currentView="topic";
-      currentGroupFilter=g.name;
-      showFavoritesOnly=false;
-      showTrash=false;
-      const firstInGroup=sortedTopicsAll().find(t=>!t.archived && groupById(t.groupId)?.name===g.name);
-      if(firstInGroup) currentTopicId=firstInGroup.id;
-      render();
-    };
-    els.tabs.appendChild(btn);
-  });
-
-  els.groupList.innerHTML=""; state.groups.forEach(g=>{ const opt=document.createElement("option"); opt.value=g.name; els.groupList.appendChild(opt); });
+  els.groupList.innerHTML="";
+  state.groups.forEach(g=>{ const opt=document.createElement("option"); opt.value=g.name; els.groupList.appendChild(opt); });
 }
 function filteredTopics(){
   const q=els.searchInput.value.trim().toLowerCase();
