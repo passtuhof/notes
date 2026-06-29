@@ -478,27 +478,10 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 .chatItem.system{display:none!important}
 
 
-/* HARD FIX: no icons in system tabs */
-#tabs .tab.systemTab .tabIcon{display:none!important;width:0!important;margin:0!important;padding:0!important;font-size:0!important}
+/* SYSTEM TABS: only text, no icons, no badges */
 #tabs .tab.systemTab{gap:0!important}
-
-/* FINAL HARD REMOVE: no icons/signs in top system tabs */
-#tabs .tab.systemTab .tabIcon,
-#tabs .tab.systemTab .avatar,
-#tabs .tab.systemTab [class*=Icon],
-.chatItem.system .avatar.hiddenSystemAvatar{
-  display:none!important;
-  width:0!important;
-  min-width:0!important;
-  height:0!important;
-  margin:0!important;
-  padding:0!important;
-  overflow:hidden!important;
-  font-size:0!important;
-  line-height:0!important;
-}
-#tabs .tab.systemTab::before, #tabs .tab.systemTab::after{content:none!important;display:none!important}
-#tabs .tab.systemTab{gap:0!important}
+#tabs .tab.systemTab::before,#tabs .tab.systemTab::after{content:none!important;display:none!important}
+#tabs .tab.systemTab .tabIcon,#tabs .tab.systemTab .avatar,#tabs .tab.systemTab b,#tabs .tab.systemTab [class*=Icon]{display:none!important}
 </style>
 </head>
 <body>
@@ -508,7 +491,7 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
       <div id="topbarTitle">Telegram Notes</div>
       <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать">＋</button>
     </div>
-    <div id="tabs"><button class="tab systemTab active" type="button"><span>Все</span></button><button class="tab systemTab" type="button"><span>Избранное</span></button><button class="tab systemTab" type="button"><span>Архив</span></button><button class="tab systemTab" type="button"><span>Корзина</span></button></div>
+    <div id="tabs"><button class="tab systemTab active" type="button">Все</button><button class="tab systemTab" type="button">Избранное</button><button class="tab systemTab" type="button">Архив</button><button class="tab systemTab" type="button">Корзина</button></div>
     <div id="searchWrap">
       <input id="searchInput" placeholder="Поиск" autocomplete="off">
     </div>
@@ -679,9 +662,8 @@ function visibleMessages(topic){
 function lastMessage(topic){ const msgs=topic.messages.filter(m=>!m.deletedAt); if(!msgs.length) return "Нет сообщений"; const pins=msgs.filter(m=>m.pinned).length; const last=msgs.at(-1); return (pins?"📌 ":"") + (last.text || attachmentLabel(last) || "Вложение"); }
 function render(){ renderGroups(); renderTopics(); renderMessages(); }
 function renderGroups(){
-  // v2.0 UI FIX: здесь теперь ТОЛЬКО системные вкладки.
-  // Группы больше не рисуются в этой строке, чтобы рядом с «Все» были именно:
-  // Все / Избранное / Архив / Корзина
+  // Чистая строка вкладок без значков, emoji, аватаров и счетчиков.
+  // Только текст: Все / Избранное / Архив / Корзина.
   const systemTabs=[
     {key:"all", label:"Все"},
     {key:"favorites", label:"Избранное"},
@@ -700,8 +682,7 @@ function renderGroups(){
       (tabData.key==="trash" && currentView==="trash");
     btn.className="tab systemTab"+(active?" active":"");
     btn.type="button";
-    const count = tabData.key==="favorites" ? countFavorites() : tabData.key==="archive" ? countArchive() : tabData.key==="trash" ? countTrash() : "";
-    btn.innerHTML=`<span>${tabData.label}</span>${count?`<b>${count}</b>`:""}`;
+    btn.textContent=tabData.label;
     btn.onclick=()=>{
       closeMenus();
       currentGroupFilter="Все";
@@ -760,10 +741,9 @@ function renderSystemItem(kind){
   const isArchive=kind==="archive";
   item.className="chatItem system "+(isFav?"fav":isTrash?"trash":"archive")+(active?" active":"");
   const title=isFav?"Избранное":isTrash?"Корзина":"Архив";
-  const icon="";
   const count=isFav?countFavorites():isTrash?countTrash():countArchive();
   const preview=isFav?"Все избранные заметки":isTrash?"Удалённые заметки":"Спрятанные подтемы";
-  item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar hiddenSystemAvatar">${icon}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${title}</div><div class="chatTime">${count}</div></div><div class="chatPreview">${preview}</div></div>`;
+  item.innerHTML=`<div class="dragHandle">≡</div><div class="chatMain"><div class="chatRow"><div class="chatName">${title}</div><div class="chatTime">${count}</div></div><div class="chatPreview">${preview}</div></div>`;
   item.addEventListener("click",()=>{
     currentView=kind;
     currentTopicId = kind==="archive" ? (state.topics.find(t=>t.archived)?.id||null) : currentTopicId;
@@ -955,65 +935,6 @@ function bind(){
   window.addEventListener("resize",()=>{if(window.innerWidth>900)els.body.classList.remove("chatOpen");closeMenus();});
 }
 save(); bind(); render();
-})();
-</script>
-
-<script>
-// HARD FIX v2.0 UI TABS REAL: если основной рендер перезапишет строку, этот слой вернет нужные вкладки.
-(function(){
-  function forceSystemTabs(){
-    var tabs=document.getElementById('tabs');
-    if(!tabs) return;
-    var labels=[['all','Все'],['favorites','Избранное'],['archive','Архив'],['trash','Корзина']];
-    var existing=[].slice.call(tabs.querySelectorAll('.systemTab')).map(function(b){return b.textContent.trim().replace(/\d+$/,'').trim();}).join('|');
-    if(existing.indexOf('Все')===-1 || existing.indexOf('Избранное')===-1 || existing.indexOf('Архив')===-1 || existing.indexOf('Корзина')===-1){
-      tabs.innerHTML='';
-      labels.forEach(function(x,i){
-        var b=document.createElement('button');
-        b.className='tab systemTab'+(i===0?' active':''); b.type='button'; b.dataset.forceTab=x[0];
-        b.innerHTML='<span>'+x[1]+'</span>';
-        tabs.appendChild(b);
-      });
-    }
-    document.querySelectorAll('.chatItem.system').forEach(function(el){el.remove();});
-  }
-  document.addEventListener('DOMContentLoaded', forceSystemTabs);
-  setTimeout(forceSystemTabs, 50);
-  setTimeout(forceSystemTabs, 300);
-})();
-</script>
-
-<script>
-// FINAL HARD REMOVE: физически чистит вкладки от любых значков, даже если другой скрипт перерисует их позже.
-(function(){
-  var cleaning=false;
-  var allowed = {"Все":1,"Избранное":1,"Архив":1,"Корзина":1};
-  var emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
-  function cleanTabs(){
-    if(cleaning) return;
-    cleaning=true;
-    try{
-      var tabs=document.getElementById('tabs');
-      if(!tabs) return;
-      tabs.querySelectorAll('.tabIcon,[class*=Icon],.avatar').forEach(function(n){ n.remove(); });
-      tabs.querySelectorAll('.systemTab').forEach(function(btn){
-        var raw=(btn.textContent||'').replace(emojiRe,'').replace(/\s+/g,' ').trim();
-        var text=raw, count='';
-        var m=raw.match(/^(Все|Избранное|Архив|Корзина)\s*(\d+)?$/);
-        if(m){ text=m[1]; count=m[2]||''; }
-        else {
-          Object.keys(allowed).some(function(k){ if(raw.indexOf(k)!==-1){ text=k; return true; } });
-        }
-        var cleanHtml='<span>'+text+'</span>'+(count?'<b>'+count+'</b>':'');
-        if(btn.innerHTML!==cleanHtml) btn.innerHTML=cleanHtml;
-      });
-    } finally { cleaning=false; }
-  }
-  document.addEventListener('DOMContentLoaded', cleanTabs);
-  window.addEventListener('load', cleanTabs);
-  setTimeout(cleanTabs,0); setTimeout(cleanTabs,50); setTimeout(cleanTabs,300); setTimeout(cleanTabs,1000);
-  var mo=new MutationObserver(cleanTabs);
-  document.addEventListener('DOMContentLoaded', function(){ var tabs=document.getElementById('tabs'); if(tabs) mo.observe(tabs,{childList:true,subtree:true,characterData:true}); });
 })();
 </script>
 
