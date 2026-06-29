@@ -69,6 +69,21 @@ button{cursor:pointer}
 #sendBtn{width:40px;height:40px;border:0;border-radius:50%;background:var(--tg-blue);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center}
 #sendBtn:active{filter:brightness(.92)}
 
+#attachBtn{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--tg-blue);font-size:30px;line-height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#attachBtn:active{background:#eef5ff}
+#attachBtn:disabled{opacity:.35}
+.mediaGrid{display:flex;flex-direction:column;gap:7px;margin-bottom:4px;max-width:100%}
+.mediaImg{display:block;max-width:100%;max-height:360px;border-radius:14px;object-fit:cover;cursor:pointer}
+.mediaVideo{display:block;width:min(420px,100%);max-height:360px;border-radius:14px;background:#000}
+.mediaAudio{display:block;width:min(360px,100%)}
+.fileCard{display:flex;align-items:center;gap:10px;text-decoration:none;color:#111;background:rgba(255,255,255,.5);border-radius:12px;padding:10px 12px;min-width:220px}
+.fileIcon{font-size:24px}
+.fileName{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.fileSize{font-size:12px;color:#666;margin-top:2px}
+#mediaViewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;align-items:center;justify-content:center;padding:18px}
+#viewerImg{max-width:100%;max-height:100%;border-radius:8px;object-fit:contain}
+#closeViewerBtn{position:fixed;top:16px;right:16px;width:42px;height:42px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:32px;line-height:36px;z-index:51}
+
 /* MODALS */
 .hidden{display:none!important}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:20;display:flex;align-items:center;justify-content:center;padding:18px}
@@ -80,7 +95,7 @@ button{cursor:pointer}
 .cardActions{display:flex;border-top:1px solid var(--tg-line)}
 .cardActions button{height:48px;flex:1;border:0;background:#fff;color:var(--tg-blue);font-size:16px}
 .cardActions button+button{border-left:1px solid var(--tg-line);font-weight:600}
-#msgMenu,#chatActions,#plusMenu{position:fixed;z-index:30;background:#fff;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.20);overflow:hidden;min-width:210px}
+#msgMenu,#chatActions,#plusMenu,#attachMenu{position:fixed;z-index:30;background:#fff;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.20);overflow:hidden;min-width:210px}
 .menuBtn{height:46px;width:100%;border:0;background:#fff;text-align:left;padding:0 16px;font-size:16px;color:#111}
 .menuBtn:active{background:#f2f2f7}
 .menuBtn.danger{color:#ff3b30}
@@ -413,7 +428,7 @@ function openChatActions(){ closeMessageMenu(); closePlusMenu(); els.toggleFavor
 function closeChatActions(){ els.chatActions.classList.add("hidden"); }
 function closeAttachMenu(){ els.attachMenu.classList.add("hidden"); }
 function closeMenus(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); closeAttachMenu(); }
-function openAttachMenu(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); const r=els.attachBtn.getBoundingClientRect(); els.attachMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-238))+"px"; els.attachMenu.style.top=Math.max(8,r.top-190)+"px"; els.attachMenu.classList.toggle("hidden"); }
+function openAttachMenu(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); const r=els.attachBtn.getBoundingClientRect(); els.attachMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-238))+"px"; els.attachMenu.style.top=Math.max(8, Math.min(r.top-198, window.innerHeight-198))+"px"; els.attachMenu.classList.toggle("hidden"); }
 function startEditMessage(id){ if(currentView!=="topic") return; const topic=currentTopic(); const msg=topic?.messages.find(m=>m.id===id&&!m.deletedAt); if(!msg) return; editingMessageId=id; els.messageInput.value=msg.text; closeMenus(); renderMessages(); setTimeout(()=>{els.messageInput.focus();els.messageInput.setSelectionRange(els.messageInput.value.length,els.messageInput.value.length);},30); }
 function deleteMessage(){ const msg=selectedMsg(); if(!msg) return; msg.deletedAt=Date.now(); if(editingMessageId===selectedMessageId){editingMessageId=null;els.messageInput.value="";} selectedMessageId=null; selectedMessageTopicId=null; save(); closeMenus(); render(); }
 function restoreMessage(){ const msg=selectedMsg(); if(!msg) return; delete msg.deletedAt; selectedMessageId=null; selectedMessageTopicId=null; save(); closeMenus(); render(); }
