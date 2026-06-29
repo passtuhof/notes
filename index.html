@@ -119,17 +119,14 @@ button{cursor:pointer}
 .chatItem.system .avatar{background:linear-gradient(135deg,#8e8e93,#636366)}
 .chatItem.system.fav .avatar{background:linear-gradient(135deg,#ffd60a,#ff9f0a)}
 .chatItem.system.trash .avatar{background:linear-gradient(135deg,#a1a1aa,#636366)}
+.chatItem.system.archive .avatar{background:linear-gradient(135deg,#8e8e93,#3a3a3c)}
+.chatItem.archived .chatName:after{content:"  Архив";font-size:11px;color:#8e8e93;font-weight:500}
+.topicMore{width:30px;height:30px;border:0;background:transparent;color:#8e8e93;border-radius:50%;font-size:22px;display:flex;align-items:center;justify-content:center;margin-left:4px}
+.topicMore:active{background:#e9e9ef}
+.swipeHint{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:#8e8e93;display:none}
+.chatItem.swiping{transition:none}
+.chatItem.showHint .swipeHint{display:block}
 
-
-.chatItem{position:relative;overflow:hidden;transition:background .16s ease, transform .18s ease}
-.chatItem .swipeActions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;transform:translateX(100%);transition:transform .18s ease;z-index:0}
-.chatItem .swipeAction{width:82px;border:0;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px}
-.chatItem .swipeAction.archive{background:#8e8e93}.chatItem .swipeAction.delete{background:#ff3b30}
-.chatItem.swiped{transform:translateX(-164px)}
-.chatItem.swiped .swipeActions{transform:translateX(164px)}
-.chatItem.system.archive .avatar{background:linear-gradient(135deg,#34c759,#0a84ff)}
-#chat.telegramWallpaper:before{opacity:.20;background-image:radial-gradient(circle at 18px 18px,rgba(255,255,255,.85) 1.4px,transparent 1.5px),radial-gradient(circle at 5px 28px,rgba(255,255,255,.45) 1px,transparent 1.1px);background-size:34px 34px,42px 42px}
-.menuBtn{display:flex;align-items:center;gap:10px}.menuBtn .mi{width:22px;text-align:center}
 
 /* MOBILE */
 @media(max-width:900px){
@@ -160,7 +157,7 @@ button{cursor:pointer}
     <div id="chatList"></div>
   </aside>
 
-  <main id="chat" class="telegramWallpaper">
+  <main id="chat">
     <div id="chatHeader">
       <button id="backBtn" type="button">‹ Чаты</button>
       <div id="headerAvatar">T</div>
@@ -217,7 +214,6 @@ button{cursor:pointer}
   <button id="toggleFavoritesBtn" class="menuBtn" type="button">Показать избранное</button>
   <button id="toggleTrashBtn" class="menuBtn" type="button">Корзина</button>
   <button id="sortDateBtn" class="menuBtn" type="button">Сначала новые</button>
-  <button id="archiveTopicBtn" class="menuBtn" type="button">Архивировать</button>
   <button id="renameTopicBtn" class="menuBtn" type="button">Переименовать</button>
   <button id="deleteTopicBtn" class="menuBtn danger" type="button">Удалить подтему</button>
 </div>
@@ -227,6 +223,12 @@ button{cursor:pointer}
   <button id="newGroupMenuBtn" class="menuBtn" type="button">Новая группа</button>
 </div>
 
+
+<div id="topicActions" class="hidden">
+  <button id="archiveTopicBtn" class="menuBtn" type="button">В архив</button>
+  <button id="renameTopicActionBtn" class="menuBtn" type="button">Переименовать</button>
+  <button id="deleteTopicActionBtn" class="menuBtn danger" type="button">Удалить подтему</button>
+</div>
 
 <div id="attachMenu" class="hidden">
   <button id="pickMediaBtn" class="menuBtn" type="button">Фото/Видео</button>
@@ -255,8 +257,9 @@ const els = {
   msgSearchWrap: $("msgSearchWrap"), msgSearchInput: $("msgSearchInput"), pinnedBar: $("pinnedBar"), messages: $("messages"), messageInput: $("messageInput"), sendBtn: $("sendBtn"),
   chatTitle: $("chatTitle"), chatStatus: $("chatStatus"), headerAvatar: $("headerAvatar"), backBtn: $("backBtn"), chatMenuBtn: $("chatMenuBtn"),
   msgMenu: $("msgMenu"), editMsgBtn: $("editMsgBtn"), copyMsgBtn: $("copyMsgBtn"), deleteMsgBtn: $("deleteMsgBtn"), pinMsgBtn: $("pinMsgBtn"), favMsgBtn: $("favMsgBtn"), restoreMsgBtn: $("restoreMsgBtn"), deleteForeverMsgBtn: $("deleteForeverMsgBtn"),
-  chatActions: $("chatActions"), toggleMsgSearchBtn: $("toggleMsgSearchBtn"), toggleFavoritesBtn: $("toggleFavoritesBtn"), toggleTrashBtn: $("toggleTrashBtn"), sortDateBtn: $("sortDateBtn"), archiveTopicBtn: $("archiveTopicBtn"), renameTopicBtn: $("renameTopicBtn"), deleteTopicBtn: $("deleteTopicBtn"),
+  chatActions: $("chatActions"), toggleMsgSearchBtn: $("toggleMsgSearchBtn"), toggleFavoritesBtn: $("toggleFavoritesBtn"), toggleTrashBtn: $("toggleTrashBtn"), sortDateBtn: $("sortDateBtn"), renameTopicBtn: $("renameTopicBtn"), deleteTopicBtn: $("deleteTopicBtn"),
   plusMenu: $("plusMenu"), newTopicMenuBtn: $("newTopicMenuBtn"), newGroupMenuBtn: $("newGroupMenuBtn"),
+  topicActions: $("topicActions"), archiveTopicBtn: $("archiveTopicBtn"), renameTopicActionBtn: $("renameTopicActionBtn"), deleteTopicActionBtn: $("deleteTopicActionBtn"),
   attachBtn: $("attachBtn"), attachMenu: $("attachMenu"), pickMediaBtn: $("pickMediaBtn"), pickCameraBtn: $("pickCameraBtn"), pickAudioBtn: $("pickAudioBtn"), pickFileBtn: $("pickFileBtn"), mediaInput: $("mediaInput"), cameraInput: $("cameraInput"), audioInput: $("audioInput"), fileInput: $("fileInput"), mediaViewer: $("mediaViewer"), viewerImg: $("viewerImg"), closeViewerBtn: $("closeViewerBtn")
 };
 
@@ -286,7 +289,7 @@ function openImageViewer(src){ els.viewerImg.src=src; els.mediaViewer.classList.
 function closeImageViewer(){ els.mediaViewer.classList.add("hidden"); els.viewerImg.src=""; }
 
 function splitLegacyName(name){ const parts=String(name||"").split("/"); return parts.length>=2 ? {group:parts[0].trim()||"Без группы", topic:parts.slice(1).join("/").trim()||"Без названия"} : {group:"Без группы", topic:String(name||"Без названия").trim()}; }
-function defaultState(){ const now=Date.now(); const g1={id:uid(),name:"Выпускные",createdAt:now}, g2={id:uid(),name:"Мафия",createdAt:now}, g3={id:uid(),name:"Контент",createdAt:now}; return {groups:[g1,g2,g3],topics:[{id:uid(),groupId:g1.id,name:"Конкурсы",createdAt:now,messages:[{id:uid(),text:"Версия 1.4: добавлены архив, свайпы по подтемам, более Telegram-подобное меню и улучшенный фон.",time:timeNow(),createdAt:now,pinned:true}]},{id:uid(),groupId:g1.id,name:"Музыка",createdAt:now,messages:[]},{id:uid(),groupId:g2.id,name:"Идеи",createdAt:now,messages:[]},{id:uid(),groupId:g3.id,name:"VK",createdAt:now,messages:[]}]}; }
+function defaultState(){ const now=Date.now(); const g1={id:uid(),name:"Выпускные",createdAt:now}, g2={id:uid(),name:"Мафия",createdAt:now}, g3={id:uid(),name:"Контент",createdAt:now}; return {groups:[g1,g2,g3],topics:[{id:uid(),groupId:g1.id,name:"Конкурсы",createdAt:now,messages:[{id:uid(),text:"Версия 1.4: добавлены Архив, быстрые действия по подтемам и более Telegram-подобные элементы.",time:timeNow(),createdAt:now,pinned:true}]},{id:uid(),groupId:g1.id,name:"Музыка",createdAt:now,messages:[]},{id:uid(),groupId:g2.id,name:"Идеи",createdAt:now,messages:[]},{id:uid(),groupId:g3.id,name:"VK",createdAt:now,messages:[]}]}; }
 function normalize(s){
   if(!s || !Array.isArray(s.groups) || !Array.isArray(s.topics)) return defaultState();
   s.topics.forEach((t,i)=>{ t.order = Number.isFinite(t.order) ? t.order : i; t.archived = !!t.archived; t.messages = Array.isArray(t.messages) ? t.messages : []; t.messages.forEach(m=>{ m.createdAt=m.createdAt||Date.now(); m.time=m.time||timeNow(); m.pinned=!!m.pinned; m.favorite=!!m.favorite; m.attachments=Array.isArray(m.attachments)?m.attachments:[]; }); });
@@ -322,7 +325,18 @@ function renderGroups(){
   els.tabs.innerHTML=""; groups.forEach(name=>{ const btn=document.createElement("button"); btn.className="tab"+(name===currentGroupFilter?" active":""); btn.type="button"; btn.textContent=name; btn.onclick=()=>{currentGroupFilter=name;renderGroups();renderTopics();}; els.tabs.appendChild(btn); });
   els.groupList.innerHTML=""; state.groups.forEach(g=>{ const opt=document.createElement("option"); opt.value=g.name; els.groupList.appendChild(opt); });
 }
-function filteredTopics(){ const q=els.searchInput.value.trim().toLowerCase(); return sortedTopicsAll().filter(t=>{ if(t.archived) return false; const group=groupById(t.groupId); const full=fullTopicName(t).toLowerCase(); const inGroup=currentGroupFilter==="Все"||group?.name===currentGroupFilter; const inSearch=!q||full.includes(q)||t.messages.some(m=>!m.deletedAt&&String(m.text).toLowerCase().includes(q)); return inGroup&&inSearch; }); }
+function filteredTopics(){
+  const q=els.searchInput.value.trim().toLowerCase();
+  const archiveMode = currentView==="archive" || !!currentTopic()?.archived;
+  return sortedTopicsAll().filter(t=>{
+    const group=groupById(t.groupId);
+    const full=fullTopicName(t).toLowerCase();
+    const inGroup=currentGroupFilter==="Все"||group?.name===currentGroupFilter;
+    const inSearch=!q||full.includes(q)||t.messages.some(m=>!m.deletedAt&&String(m.text).toLowerCase().includes(q));
+    const inArchive = archiveMode ? !!t.archived : !t.archived;
+    return inArchive&&inGroup&&inSearch;
+  });
+}
 function countFavorites(){ return state.topics.reduce((n,t)=>n+t.messages.filter(m=>m.favorite&&!m.deletedAt).length,0); }
 function countTrash(){ return state.topics.reduce((n,t)=>n+t.messages.filter(m=>m.deletedAt).length,0); }
 function countArchive(){ return state.topics.filter(t=>t.archived).length; }
@@ -332,28 +346,31 @@ function renderSystemItem(kind){
   const isFav=kind==="favorites";
   const isTrash=kind==="trash";
   const isArchive=kind==="archive";
-  item.className="chatItem system "+(isFav?"fav":isArchive?"archive":"trash")+(active?" active":"");
-  const title=isFav?"Избранное":isArchive?"Архив":"Корзина";
-  const icon=isFav?"⭐":isArchive?"📦":"🗑";
-  const count=isFav?countFavorites():isArchive?countArchive():countTrash();
-  const preview=isFav?"Все избранные заметки":isArchive?"Скрытые подтемы":"Удалённые заметки";
+  item.className="chatItem system "+(isFav?"fav":isTrash?"trash":"archive")+(active?" active":"");
+  const title=isFav?"Избранное":isTrash?"Корзина":"Архив";
+  const icon=isFav?"⭐":isTrash?"🗑":"📦";
+  const count=isFav?countFavorites():isTrash?countTrash():countArchive();
+  const preview=isFav?"Все избранные заметки":isTrash?"Удалённые заметки":"Спрятанные подтемы";
   item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${icon}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${title}</div><div class="chatTime">${count}</div></div><div class="chatPreview">${preview}</div></div>`;
-  item.addEventListener("click",()=>{ currentView=kind; editingMessageId=null; selectedMessageId=null; showTrash=(kind==="trash"); showFavoritesOnly=(kind==="favorites"); closeMenus(); render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); });
+  item.addEventListener("click",()=>{
+    currentView=kind;
+    currentTopicId = kind==="archive" ? (state.topics.find(t=>t.archived)?.id||null) : currentTopicId;
+    editingMessageId=null; selectedMessageId=null;
+    showTrash=(kind==="trash"); showFavoritesOnly=(kind==="favorites");
+    closeMenus(); render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen");
+  });
   els.chatList.appendChild(item);
 }
 function renderTopics(){
   const topics=filteredTopics(); els.chatList.innerHTML="";
   renderSystemItem("favorites");
-  renderSystemItem("archive");
   renderSystemItem("trash");
-  if(!topics.length){ const empty=document.createElement("div"); empty.className="emptyList"; empty.innerHTML="Подтем не найдено<br>Нажми плюсик, чтобы создать подтему"; els.chatList.appendChild(empty); return; }
-  topics.forEach(topic=>{ const item=document.createElement("div"); item.className="chatItem"+(currentView==="topic"&&topic.id===currentTopicId?" active":""); item.draggable=true; item.dataset.id=topic.id; item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(initials(topic))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(fullTopicName(topic))}</div><div class="chatTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</div></div><div class="chatPreview">${escapeHtml(lastMessage(topic))}</div></div>`;
-    
-    const actions=document.createElement("div"); actions.className="swipeActions"; actions.innerHTML=`<button class="swipeAction archive" type="button">📦<span>Архив</span></button><button class="swipeAction delete" type="button">🗑<span>Удалить</span></button>`; item.appendChild(actions);
-    actions.querySelector(".archive").onclick=(e)=>{e.stopPropagation(); archiveTopic(topic.id,true);};
-    actions.querySelector(".delete").onclick=(e)=>{e.stopPropagation(); currentTopicId=topic.id; deleteTopic();};
-    bindSwipe(item);
-    item.addEventListener("click",()=>{ if(dragTopicId || item.classList.contains("swiped")){ item.classList.remove("swiped"); return; } currentView="topic"; currentTopicId=topic.id; editingMessageId=null; showTrash=false; showFavoritesOnly=false; closeMenus(); render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); setTimeout(()=>els.messageInput.focus(),80); });
+  renderSystemItem("archive");
+  if(!topics.length){ const empty=document.createElement("div"); empty.className="emptyList"; empty.innerHTML=(currentView==="archive"?"Архив пуст<br>Свайпни подтему влево или нажми ⋯ → В архив":"Подтем не найдено<br>Нажми плюсик, чтобы создать подтему"); els.chatList.appendChild(empty); return; }
+  topics.forEach(topic=>{ const item=document.createElement("div"); item.className="chatItem"+(topic.archived?" archived":"")+(currentTopicId===topic.id?" active":""); item.draggable=true; item.dataset.id=topic.id; item.style.position="relative"; item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(initials(topic))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(fullTopicName(topic))}</div><div class="chatTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</div></div><div class="chatPreview">${escapeHtml(lastMessage(topic))}</div></div><button class="topicMore" type="button">⋯</button><div class="swipeHint">Отпусти: ${topic.archived?"вернуть":"в архив"}</div>`;
+    item.querySelector(".topicMore").addEventListener("click",e=>{e.stopPropagation();openTopicActions(topic.id,e.clientX,e.clientY);});
+    bindSwipeArchive(item, topic.id);
+    item.addEventListener("click",()=>{ if(dragTopicId) return; currentView="topic"; currentTopicId=topic.id; editingMessageId=null; showTrash=false; showFavoritesOnly=false; closeMenus(); render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); setTimeout(()=>els.messageInput.focus(),80); });
     item.addEventListener("dragstart",e=>{ dragTopicId=topic.id; item.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; });
     item.addEventListener("dragend",()=>{ dragTopicId=null; item.classList.remove("dragging"); document.querySelectorAll('.dragOver').forEach(x=>x.classList.remove('dragOver')); });
     item.addEventListener("dragover",e=>{ if(!dragTopicId||dragTopicId===topic.id) return; e.preventDefault(); item.classList.add("dragOver"); });
@@ -398,20 +415,23 @@ function systemMessages(kind){
   return arr.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
 }
 function renderMessages(){
-  if(currentView==="favorites" || currentView==="trash" || currentView==="archive"){
+  if(currentView==="archive" && !currentTopicId){
+    els.chatTitle.textContent="Архив"; els.chatStatus.textContent="Сюда попадают скрытые подтемы"; els.headerAvatar.textContent="📦";
+    els.msgSearchWrap.classList.add("hidden"); els.pinnedBar.classList.add("hidden"); els.messages.innerHTML=`<div class="emptyState">Архив пуст. Открой список чатов, свайпни подтему влево или нажми ⋯ возле подтемы.</div>`;
+    els.messageInput.disabled=true; els.attachBtn.disabled=true; els.sendBtn.disabled=true; return;
+  }
+  if(currentView==="favorites" || currentView==="trash"){
     const isFav=currentView==="favorites";
-    const isArchive=currentView==="archive";
-    els.chatTitle.textContent=isFav?"Избранное":isArchive?"Архив":"Корзина";
-    els.chatStatus.textContent=(isFav?countFavorites():isArchive?countArchive():countTrash())+(isArchive?" подтем":" заметок");
-    els.headerAvatar.textContent=isFav?"⭐":isArchive?"📦":"🗑";
+    els.chatTitle.textContent=isFav?"Избранное":"Корзина";
+    els.chatStatus.textContent=(isFav?countFavorites():countTrash())+" заметок";
+    els.headerAvatar.textContent=isFav?"⭐":"🗑";
     els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
     els.pinnedBar.classList.add("hidden");
     els.messageInput.disabled=true; els.attachBtn.disabled=true;
-    els.messageInput.placeholder=isFav?"В Избранном писать нельзя":isArchive?"Выберите подтему из архива":"В Корзине писать нельзя";
+    els.messageInput.placeholder=isFav?"В Избранном писать нельзя":"В Корзине писать нельзя";
     els.sendBtn.disabled=true;
     els.messages.innerHTML='<div class="dateSep">Сегодня</div>';
-    els.messages.innerHTML += `<div class="trashNotice">${isFav?"Все сообщения, которые ты отметил звездой.":isArchive?"Архивные подтемы скрыты из основного списка. Нажми на подтему, чтобы открыть её.":"Удалённые сообщения. Можно восстановить или удалить навсегда."}</div>`;
-    if(isArchive){ renderArchiveTopics(); return; }
+    els.messages.innerHTML += `<div class="trashNotice">${isFav?"Все сообщения, которые ты отметил звездой.":"Удалённые сообщения. Можно восстановить или удалить навсегда."}</div>`;
     let msgs=systemMessages(currentView);
     const q=els.msgSearchInput.value.trim().toLowerCase();
     if(q) msgs=msgs.filter(m=>String(m.text).toLowerCase().includes(q)||fullTopicName(m._topic).toLowerCase().includes(q));
@@ -423,7 +443,7 @@ function renderMessages(){
   els.messageInput.disabled=false; els.attachBtn.disabled=false; els.messageInput.placeholder="Сообщение"; els.sendBtn.disabled=false;
   const topic=currentTopic();
   if(!topic){ els.chatTitle.textContent="Telegram Notes"; els.chatStatus.textContent="Личные заметки"; els.headerAvatar.textContent="T"; els.pinnedBar.classList.add("hidden"); els.messages.innerHTML='<div class="welcome">Выберите подтему<br>или создай новую через плюсик</div>'; return; }
-  els.chatTitle.textContent=fullTopicName(topic); const live=topic.messages.filter(m=>!m.deletedAt).length, trash=topic.messages.filter(m=>m.deletedAt).length; els.chatStatus.textContent=topic.archived?`В архиве · ${live} заметок`:(showTrash?`Корзина: ${trash}`:showFavoritesOnly?`Избранное: ${topic.messages.filter(m=>m.favorite&&!m.deletedAt).length}`:`${live} заметок`); els.headerAvatar.textContent=initials(topic);
+  els.chatTitle.textContent=fullTopicName(topic); const live=topic.messages.filter(m=>!m.deletedAt).length, trash=topic.messages.filter(m=>m.deletedAt).length; els.chatStatus.textContent=(showTrash?`Корзина: ${trash}`:showFavoritesOnly?`Избранное: ${topic.messages.filter(m=>m.favorite&&!m.deletedAt).length}`:`${live} заметок`); els.headerAvatar.textContent=initials(topic);
   els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
   const pinned=topic.messages.filter(m=>m.pinned&&!m.deletedAt); if(pinned.length&&!showTrash){ els.pinnedBar.innerHTML=`<span>📌</span><div class="pinnedText">${escapeHtml(pinned[0].text || attachmentLabel(pinned[0]))}</div>`; els.pinnedBar.classList.remove("hidden"); } else els.pinnedBar.classList.add("hidden");
   els.messages.innerHTML='<div class="dateSep">Сегодня</div>';
@@ -447,10 +467,46 @@ function selectedMsg(){ const topic= selectedMessageTopicId ? state.topics.find(
 function selectedMsgTopic(){ return selectedMessageTopicId ? state.topics.find(t=>t.id===selectedMessageTopicId) : currentTopic(); }
 function openMessageMenu(messageId,x,y,topicId){ selectedMessageId=messageId; selectedMessageTopicId=topicId||null; const msg=selectedMsg(); closeChatActions(); closePlusMenu(); els.pinMsgBtn.textContent=msg?.pinned?"Открепить":"Закрепить"; els.favMsgBtn.textContent=msg?.favorite?"Убрать из избранного":"В избранное"; const deleted=!!msg?.deletedAt; [els.editMsgBtn,els.copyMsgBtn,els.pinMsgBtn,els.favMsgBtn,els.deleteMsgBtn].forEach(b=>b.classList.toggle("hidden",deleted)); [els.restoreMsgBtn,els.deleteForeverMsgBtn].forEach(b=>b.classList.toggle("hidden",!deleted)); els.msgMenu.style.left=Math.max(8,Math.min(x,window.innerWidth-218))+"px"; els.msgMenu.style.top=Math.max(8,Math.min(y,window.innerHeight-260))+"px"; els.msgMenu.classList.remove("hidden"); }
 function closeMessageMenu(){ els.msgMenu.classList.add("hidden"); }
-function openChatActions(){ closeMessageMenu(); closePlusMenu(); els.toggleFavoritesBtn.textContent=showFavoritesOnly?"Показать все":"Показать избранное"; els.toggleTrashBtn.textContent=showTrash?"Выйти из корзины":"Корзина"; els.sortDateBtn.textContent=sortNewestFirst?"Сначала старые":"Сначала новые"; if(els.archiveTopicBtn){ const t=currentTopic(); els.archiveTopicBtn.textContent=t?.archived?"Вернуть из архива":"Архивировать"; } const r=els.chatMenuBtn.getBoundingClientRect(); els.chatActions.style.left=Math.max(8,Math.min(r.right-230,window.innerWidth-238))+"px"; els.chatActions.style.top=(r.bottom+6)+"px"; els.chatActions.classList.toggle("hidden"); }
+function openChatActions(){ closeMessageMenu(); closePlusMenu(); els.toggleFavoritesBtn.textContent=showFavoritesOnly?"Показать все":"Показать избранное"; els.toggleTrashBtn.textContent=showTrash?"Выйти из корзины":"Корзина"; els.sortDateBtn.textContent=sortNewestFirst?"Сначала старые":"Сначала новые"; const r=els.chatMenuBtn.getBoundingClientRect(); els.chatActions.style.left=Math.max(8,Math.min(r.right-230,window.innerWidth-238))+"px"; els.chatActions.style.top=(r.bottom+6)+"px"; els.chatActions.classList.toggle("hidden"); }
 function closeChatActions(){ els.chatActions.classList.add("hidden"); }
+
+function closeTopicActions(){ els.topicActions.classList.add("hidden"); }
+let selectedTopicActionId = null;
+function openTopicActions(topicId,x,y){
+  selectedTopicActionId=topicId;
+  const topic=state.topics.find(t=>t.id===topicId);
+  closeMessageMenu(); closeChatActions(); closePlusMenu(); closeAttachMenu();
+  els.archiveTopicBtn.textContent=topic?.archived?"Вернуть из архива":"В архив";
+  els.topicActions.style.left=Math.max(8,Math.min(x-210,window.innerWidth-228))+"px";
+  els.topicActions.style.top=Math.max(8,Math.min(y+8,window.innerHeight-160))+"px";
+  els.topicActions.classList.remove("hidden");
+}
+function toggleArchiveTopic(topicId){
+  const topic=state.topics.find(t=>t.id===topicId);
+  if(!topic) return;
+  topic.archived=!topic.archived;
+  if(topic.archived && currentTopicId===topic.id){ currentView="archive"; currentTopicId=state.topics.find(t=>t.archived)?.id||null; }
+  if(!topic.archived){ currentView="topic"; currentTopicId=topic.id; }
+  save(); closeMenus(); render();
+}
+function deleteTopicById(topicId){
+  const topic=state.topics.find(t=>t.id===topicId); if(!topic) return;
+  if(!confirm("Удалить подтему «"+fullTopicName(topic)+"»?")) return;
+  state.topics=state.topics.filter(t=>t.id!==topic.id);
+  const used=new Set(state.topics.map(t=>t.groupId)); state.groups=state.groups.filter(g=>used.has(g.id));
+  if(currentTopicId===topic.id) currentTopicId=firstTopicId();
+  currentView=currentTopicId?"topic":"favorites"; save(); closeMenus(); render();
+}
+function bindSwipeArchive(item, id){
+  let sx=0, sy=0, dx=0, active=false;
+  item.addEventListener('pointerdown', e=>{ if(e.target.closest('.dragHandle,.topicMore')) return; sx=e.clientX; sy=e.clientY; dx=0; active=true; });
+  item.addEventListener('pointermove', e=>{ if(!active) return; dx=e.clientX-sx; const dy=e.clientY-sy; if(Math.abs(dx)>20 && Math.abs(dx)>Math.abs(dy)){ item.classList.add('swiping'); const move=Math.max(-92, Math.min(0, dx)); item.style.transform=`translateX(${move}px)`; item.classList.toggle('showHint', move<-55); } });
+  item.addEventListener('pointerup', ()=>{ if(!active) return; active=false; item.classList.remove('swiping'); const should=dx<-70; item.style.transform=''; item.classList.remove('showHint'); if(should) toggleArchiveTopic(id); });
+  item.addEventListener('pointercancel', ()=>{ active=false; item.style.transform=''; item.classList.remove('showHint','swiping'); });
+}
+
 function closeAttachMenu(){ els.attachMenu.classList.add("hidden"); }
-function closeMenus(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); closeAttachMenu(); }
+function closeMenus(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); closeAttachMenu(); closeTopicActions(); }
 function openAttachMenu(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); const r=els.attachBtn.getBoundingClientRect(); els.attachMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-238))+"px"; els.attachMenu.style.top=Math.max(8, Math.min(r.top-198, window.innerHeight-198))+"px"; els.attachMenu.classList.toggle("hidden"); }
 function startEditMessage(id){ if(currentView!=="topic") return; const topic=currentTopic(); const msg=topic?.messages.find(m=>m.id===id&&!m.deletedAt); if(!msg) return; editingMessageId=id; els.messageInput.value=msg.text; closeMenus(); renderMessages(); setTimeout(()=>{els.messageInput.focus();els.messageInput.setSelectionRange(els.messageInput.value.length,els.messageInput.value.length);},30); }
 function deleteMessage(){ const msg=selectedMsg(); if(!msg) return; msg.deletedAt=Date.now(); if(editingMessageId===selectedMessageId){editingMessageId=null;els.messageInput.value="";} selectedMessageId=null; selectedMessageTopicId=null; save(); closeMenus(); render(); }
@@ -459,35 +515,6 @@ function deleteForeverMessage(){ const topic=selectedMsgTopic(); if(!topic||!sel
 function togglePin(){ const msg=selectedMsg(); if(!msg||msg.deletedAt) return; msg.pinned=!msg.pinned; save(); closeMenus(); render(); }
 function toggleFavorite(){ const msg=selectedMsg(); if(!msg||msg.deletedAt) return; msg.favorite=!msg.favorite; save(); closeMenus(); render(); }
 async function copyMessage(){ const msg=selectedMsg(); if(!msg) return; try{ await navigator.clipboard.writeText(msg.text); }catch(e){ const temp=document.createElement("textarea"); temp.value=msg.text; document.body.appendChild(temp); temp.select(); document.execCommand("copy"); temp.remove(); } closeMenus(); }
-
-function bindSwipe(item){
-  let sx=0, sy=0, moving=false;
-  item.addEventListener("touchstart", e=>{ const t=e.touches?.[0]; if(!t) return; sx=t.clientX; sy=t.clientY; moving=true; }, {passive:true});
-  item.addEventListener("touchmove", e=>{ if(!moving) return; const t=e.touches?.[0]; if(!t) return; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>55 && Math.abs(dx)>Math.abs(dy)*1.4){ document.querySelectorAll('.chatItem.swiped').forEach(x=>{if(x!==item)x.classList.remove('swiped')}); item.classList.toggle('swiped', dx<0); moving=false; } }, {passive:true});
-  item.addEventListener("touchend", ()=>{moving=false;}, {passive:true});
-}
-function archiveTopic(id, value){
-  const topic=state.topics.find(t=>t.id===id); if(!topic) return;
-  topic.archived=!!value;
-  if(topic.archived && currentTopicId===id){ currentView="archive"; }
-  if(!topic.archived){ currentView="topic"; currentTopicId=id; }
-  save(); closeMenus(); render();
-}
-function renderArchiveTopics(){
-  const topics=sortedTopicsAll().filter(t=>t.archived);
-  if(!topics.length){ const empty=document.createElement("div"); empty.className="welcome"; empty.innerHTML="Архив пустой"; els.messages.appendChild(empty); return; }
-  topics.forEach(topic=>{
-    const div=document.createElement("div");
-    div.className="msg";
-    div.style.alignSelf="stretch"; div.style.maxWidth="min(620px,94%)"; div.style.cursor="pointer";
-    div.innerHTML=`<b>📦 ${escapeHtml(fullTopicName(topic))}</b><br><span style="color:#667;font-size:14px">${topic.messages.filter(m=>!m.deletedAt).length} заметок · нажми, чтобы открыть</span><span class="msgTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</span>`;
-    div.onclick=()=>{ currentView="topic"; currentTopicId=topic.id; showTrash=false; showFavoritesOnly=false; render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); };
-    div.addEventListener("contextmenu", e=>{ e.preventDefault(); archiveTopic(topic.id,false); });
-    els.messages.appendChild(div);
-  });
-  const hint=document.createElement("div"); hint.className="trashNotice"; hint.textContent="Чтобы вернуть подтему из архива: открой её → меню ⋯ → Вернуть из архива."; els.messages.appendChild(hint);
-}
-
 function deleteTopic(){ const topic=currentTopic(); if(!topic) return; if(!confirm("Удалить подтему «"+fullTopicName(topic)+"»?")) return; state.topics=state.topics.filter(t=>t.id!==topic.id); const used=new Set(state.topics.map(t=>t.groupId)); state.groups=state.groups.filter(g=>used.has(g.id)); currentTopicId=firstTopicId(); currentView=currentTopicId?"topic":"favorites"; editingMessageId=null; selectedMessageId=null; save(); closeMenus(); if(!currentTopicId) els.body.classList.remove("chatOpen"); render(); }
 function bind(){
   els.attachBtn.onclick=e=>{e.stopPropagation(); if(!els.attachBtn.disabled) openAttachMenu();};
@@ -511,10 +538,11 @@ function bind(){
   els.toggleFavoritesBtn.onclick=()=>{showFavoritesOnly=!showFavoritesOnly; showTrash=false; closeMenus(); renderMessages();};
   els.toggleTrashBtn.onclick=()=>{showTrash=!showTrash; showFavoritesOnly=false; editingMessageId=null; closeMenus(); renderMessages();};
   els.sortDateBtn.onclick=()=>{sortNewestFirst=!sortNewestFirst; closeMenus(); renderMessages();};
-  els.archiveTopicBtn.onclick=()=>{ const t=currentTopic(); if(t) archiveTopic(t.id,!t.archived); }; els.renameTopicBtn.onclick=()=>openTopicModal("renameTopic"); els.deleteTopicBtn.onclick=deleteTopic;
+  els.renameTopicBtn.onclick=()=>openTopicModal("renameTopic"); els.deleteTopicBtn.onclick=deleteTopic;
+  els.archiveTopicBtn.onclick=()=>toggleArchiveTopic(selectedTopicActionId); els.renameTopicActionBtn.onclick=()=>{ currentTopicId=selectedTopicActionId; currentView="topic"; openTopicModal("renameTopic"); }; els.deleteTopicActionBtn.onclick=()=>deleteTopicById(selectedTopicActionId);
   els.editMsgBtn.onclick=()=>startEditMessage(selectedMessageId); els.copyMsgBtn.onclick=copyMessage; els.deleteMsgBtn.onclick=deleteMessage; els.pinMsgBtn.onclick=togglePin; els.favMsgBtn.onclick=toggleFavorite; els.restoreMsgBtn.onclick=restoreMessage; els.deleteForeverMsgBtn.onclick=deleteForeverMessage;
   els.pinnedBar.onclick=()=>{ const topic=currentTopic(); const pin=topic?.messages.find(m=>m.pinned&&!m.deletedAt); if(pin){ const el=els.messages.querySelector(`[data-id="${pin.id}"]`); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); } };
-  document.addEventListener("click",e=>{ if(!els.msgMenu.contains(e.target)&&!e.target.closest(".msg"))closeMessageMenu(); if(!els.chatActions.contains(e.target)&&e.target!==els.chatMenuBtn)closeChatActions(); if(!els.plusMenu.contains(e.target)&&e.target!==els.newChatBtn)closePlusMenu(); if(!els.attachMenu.contains(e.target)&&e.target!==els.attachBtn)closeAttachMenu(); });
+  document.addEventListener("click",e=>{ if(!els.msgMenu.contains(e.target)&&!e.target.closest(".msg"))closeMessageMenu(); if(!els.chatActions.contains(e.target)&&e.target!==els.chatMenuBtn)closeChatActions(); if(!els.plusMenu.contains(e.target)&&e.target!==els.newChatBtn)closePlusMenu(); if(!els.attachMenu.contains(e.target)&&e.target!==els.attachBtn)closeAttachMenu(); if(!els.topicActions.contains(e.target)&&!e.target.closest(".topicMore"))closeTopicActions(); });
   window.addEventListener("resize",()=>{if(window.innerWidth>900)els.body.classList.remove("chatOpen");closeMenus();});
 }
 save(); bind(); render();
