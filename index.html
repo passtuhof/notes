@@ -462,7 +462,6 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
   border-color:#229ED9!important;
   box-shadow:0 4px 12px rgba(34,158,217,.26)!important;
 }
-#tabs .tab.systemTab .tabIcon{font-size:16px!important;line-height:1!important}
 #tabs .tab.systemTab b{
   min-width:19px!important;
   height:19px!important;
@@ -479,9 +478,9 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 .chatItem.system{display:none!important}
 
 
-/* FIX: убрать значки во вкладках Все / Избранное / Архив / Корзина */
-#tabs .tab.systemTab .tabIcon{display:none!important}
-
+/* HARD FIX: no icons in system tabs */
+#tabs .tab.systemTab .tabIcon{display:none!important;width:0!important;margin:0!important;padding:0!important;font-size:0!important}
+#tabs .tab.systemTab{gap:0!important}
 </style>
 </head>
 <body>
@@ -666,10 +665,10 @@ function renderGroups(){
   // Группы больше не рисуются в этой строке, чтобы рядом с «Все» были именно:
   // Все / Избранное / Архив / Корзина
   const systemTabs=[
-    {key:"all", label:"Все", icon:""},
-    {key:"favorites", label:"Избранное", icon:""},
-    {key:"archive", label:"Архив", icon:""},
-    {key:"trash", label:"Корзина", icon:""}
+    {key:"all", label:"Все"},
+    {key:"favorites", label:"Избранное"},
+    {key:"archive", label:"Архив"},
+    {key:"trash", label:"Корзина"}
   ];
   currentGroupFilter="Все";
   els.tabs.innerHTML="";
@@ -947,14 +946,14 @@ save(); bind(); render();
   function forceSystemTabs(){
     var tabs=document.getElementById('tabs');
     if(!tabs) return;
-    var labels=[['all','','Все'],['favorites','','Избранное'],['archive','','Архив'],['trash','','Корзина']];
+    var labels=[['all','Все'],['favorites','Избранное'],['archive','Архив'],['trash','Корзина']];
     var existing=[].slice.call(tabs.querySelectorAll('.systemTab')).map(function(b){return b.textContent.trim().replace(/\d+$/,'').trim();}).join('|');
     if(existing.indexOf('Все')===-1 || existing.indexOf('Избранное')===-1 || existing.indexOf('Архив')===-1 || existing.indexOf('Корзина')===-1){
       tabs.innerHTML='';
       labels.forEach(function(x,i){
         var b=document.createElement('button');
         b.className='tab systemTab'+(i===0?' active':''); b.type='button'; b.dataset.forceTab=x[0];
-        b.innerHTML='<span>'+x[2]+'</span>';
+        b.innerHTML='<span>'+x[1]+'</span>';
         tabs.appendChild(b);
       });
     }
