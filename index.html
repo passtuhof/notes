@@ -478,6 +478,10 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 #tabs .tab.systemTab.active b{background:rgba(255,255,255,.24)!important;color:#fff!important}
 .chatItem.system{display:none!important}
 
+
+/* FIX: убрать значки во вкладках Все / Избранное / Архив / Корзина */
+#tabs .tab.systemTab .tabIcon{display:none!important}
+
 </style>
 </head>
 <body>
@@ -662,10 +666,10 @@ function renderGroups(){
   // Группы больше не рисуются в этой строке, чтобы рядом с «Все» были именно:
   // Все / Избранное / Архив / Корзина
   const systemTabs=[
-    {key:"all", label:"Все", icon:"💬"},
-    {key:"favorites", label:"Избранное", icon:"⭐"},
-    {key:"archive", label:"Архив", icon:"📦"},
-    {key:"trash", label:"Корзина", icon:"🗑"}
+    {key:"all", label:"Все", icon:""},
+    {key:"favorites", label:"Избранное", icon:""},
+    {key:"archive", label:"Архив", icon:""},
+    {key:"trash", label:"Корзина", icon:""}
   ];
   currentGroupFilter="Все";
   els.tabs.innerHTML="";
@@ -680,7 +684,7 @@ function renderGroups(){
     btn.className="tab systemTab"+(active?" active":"");
     btn.type="button";
     const count = tabData.key==="favorites" ? countFavorites() : tabData.key==="archive" ? countArchive() : tabData.key==="trash" ? countTrash() : "";
-    btn.innerHTML=`<span class="tabIcon">${tabData.icon}</span><span>${tabData.label}</span>${count?`<b>${count}</b>`:""}`;
+    btn.innerHTML=`<span>${tabData.label}</span>${count?`<b>${count}</b>`:""}`;
     btn.onclick=()=>{
       closeMenus();
       currentGroupFilter="Все";
@@ -950,7 +954,7 @@ save(); bind(); render();
       labels.forEach(function(x,i){
         var b=document.createElement('button');
         b.className='tab systemTab'+(i===0?' active':''); b.type='button'; b.dataset.forceTab=x[0];
-        b.innerHTML='<span class="tabIcon">'+x[1]+'</span><span>'+x[2]+'</span>';
+        b.innerHTML='<span>'+x[2]+'</span>';
         tabs.appendChild(b);
       });
     }
