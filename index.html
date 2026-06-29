@@ -487,7 +487,7 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
       <div id="topbarTitle">Telegram Notes</div>
       <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать">＋</button>
     </div>
-    <div id="tabs"><button class="tab systemTab active" type="button"><span class="tabIcon">💬</span><span>Все</span></button><button class="tab systemTab" type="button"><span class="tabIcon">⭐</span><span>Избранное</span></button><button class="tab systemTab" type="button"><span class="tabIcon">📦</span><span>Архив</span></button><button class="tab systemTab" type="button"><span class="tabIcon">🗑</span><span>Корзина</span></button></div>
+    <div id="tabs"><button class="tab systemTab active" type="button"><span>Все</span></button><button class="tab systemTab" type="button"><span>Избранное</span></button><button class="tab systemTab" type="button"><span>Архив</span></button><button class="tab systemTab" type="button"><span>Корзина</span></button></div>
     <div id="searchWrap">
       <input id="searchInput" placeholder="Поиск" autocomplete="off">
     </div>
@@ -943,7 +943,7 @@ save(); bind(); render();
   function forceSystemTabs(){
     var tabs=document.getElementById('tabs');
     if(!tabs) return;
-    var labels=[['all','💬','Все'],['favorites','⭐','Избранное'],['archive','📦','Архив'],['trash','🗑','Корзина']];
+    var labels=[['all','','Все'],['favorites','','Избранное'],['archive','','Архив'],['trash','','Корзина']];
     var existing=[].slice.call(tabs.querySelectorAll('.systemTab')).map(function(b){return b.textContent.trim().replace(/\d+$/,'').trim();}).join('|');
     if(existing.indexOf('Все')===-1 || existing.indexOf('Избранное')===-1 || existing.indexOf('Архив')===-1 || existing.indexOf('Корзина')===-1){
       tabs.innerHTML='';
