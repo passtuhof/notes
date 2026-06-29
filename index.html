@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Заметки</title>
   <style>
     :root{
@@ -20,9 +20,10 @@
       --safe:#4bd37b;
       --shadow:0 12px 30px rgba(0,0,0,.25);
     }
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
     html,body{margin:0;height:100%;background:var(--tg-bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--tg-text);overflow:hidden}
     button,input,textarea{font-family:inherit}
+    input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
     .app{height:100dvh;display:flex;justify-content:center;background:
       radial-gradient(circle at top left, rgba(42,171,238,.13), transparent 38%),
       radial-gradient(circle at bottom right, rgba(75,211,123,.08), transparent 35%),
@@ -91,6 +92,20 @@
     .recStop{border:0;border-radius:12px;background:var(--danger);color:white;padding:10px 14px;flex:none;font-weight:700}
     .eq{height:34px;flex:1;border-radius:10px;background:rgba(0,0,0,.22);overflow:hidden;display:flex;align-items:center;padding:0 8px}
     .eq canvas{width:100%;height:34px;display:block}
+
+    .bubble{position:relative;cursor:pointer}
+    .bubble.selected{outline:2px solid rgba(42,171,238,.85)}
+    .pinBar{margin:0 0 10px;background:rgba(42,171,238,.13);border-left:4px solid var(--tg-blue);border-radius:12px;padding:10px 12px;color:var(--tg-text);display:flex;align-items:center;gap:10px}
+    .pinIcon{font-size:18px}
+    .pinText{min-width:0;flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d9f2ff}
+    .pinClose{border:0;background:transparent;color:var(--tg-muted);font-size:20px}
+    .actionOverlay{position:absolute;inset:0;background:rgba(0,0,0,.22);display:none;z-index:70}
+    .msgMenu{position:absolute;min-width:210px;background:#1d2935;border:1px solid var(--tg-line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:none;z-index:80}
+    .msgMenu button{width:100%;height:48px;border:0;background:transparent;color:var(--tg-text);font-size:16px;text-align:left;padding:0 16px;display:flex;align-items:center;gap:10px}
+    .msgMenu button:active{background:rgba(255,255,255,.08)}
+    .msgMenu .danger{color:#ffb4bf}
+    .editModal textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:14px;background:#101923;color:var(--tg-text);padding:12px 14px;font-size:16px;outline:none;resize:vertical;-webkit-user-select:text;user-select:text}
+
     @keyframes pulse{50%{opacity:.35}}
     @media(min-width:821px){
       .phone{height:96dvh;margin:auto;border-radius:18px;overflow:hidden}
@@ -143,6 +158,25 @@
       </div>
     </div>
 
+
+    <div class="actionOverlay" id="actionOverlay"></div>
+    <div class="msgMenu" id="msgMenu">
+      <button type="button" id="editMsgBtn">✏️ Редактировать</button>
+      <button type="button" id="deleteMsgBtn" class="danger">🗑️ Удалить</button>
+      <button type="button" id="pinMsgBtn">📌 Закрепить</button>
+    </div>
+
+    <div class="modalBg" id="editModalBg">
+      <div class="modal editModal">
+        <h3>Редактировать сообщение</h3>
+        <textarea id="editMsgText" placeholder="Текст сообщения"></textarea>
+        <div class="modalRow">
+          <button class="modalBtn" id="editCancelBtn">Отмена</button>
+          <button class="modalBtn primary" id="editSaveBtn">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
     <input class="hiddenInput" id="mediaInput" type="file" accept="image/*,video/*" multiple />
     <input class="hiddenInput" id="cameraInput" type="file" accept="image/*,video/*" capture="environment" />
     <input class="hiddenInput" id="circleInput" type="file" accept="video/*" capture="user" />
@@ -179,6 +213,7 @@
   let eqAnimation = null;
   let recStartedAt = 0;
   let recTimer = null;
+  let selectedMsgId = null;
 
   function load(){
     try {
@@ -297,30 +332,165 @@
   function renderMessages(){
     const content = $('content');
     const msgs = db.messages[route.id] || [];
+    const note = currentItem();
+    const pinned = note?.pinnedMsgId ? msgs.find(m => m.id === note.pinnedMsgId) : null;
+    const pinHtml = pinned ? `<div class="pinBar" data-jump-pin="${pinned.id}"><div class="pinIcon">📌</div><div class="pinText">${escapeHtml(preview(pinned))}</div><button class="pinClose" id="unpinBtn">×</button></div>` : '';
+
     if(!msgs.length){
-      content.innerHTML = `<div class="messages" style="min-height:100%"><div class="dayLabel">${dateLabel()}</div><div class="empty"><div class="emptyIcon">✍️</div><div>Здесь будут сообщения заметки</div></div></div>`;
+      content.innerHTML = `<div class="messages" style="min-height:100%">${pinHtml}<div class="dayLabel">${dateLabel()}</div><div class="empty"><div class="emptyIcon">✍️</div><div>Здесь будут сообщения заметки</div></div></div>`;
+      bindMessageActions();
       return;
     }
-    content.innerHTML = `<div class="messages" id="messagesBox"><div class="dayLabel">${dateLabel()}</div>${msgs.map(renderMsg).join('')}</div>`;
+    content.innerHTML = `<div class="messages" id="messagesBox">${pinHtml}<div class="dayLabel">${dateLabel()}</div>${msgs.map(renderMsg).join('')}</div>`;
+    bindMessageActions();
     setTimeout(()=> content.scrollTop = content.scrollHeight, 0);
   }
 
   function renderMsg(m){
     if(m.kind === 'text'){
-      return `<div class="bubble">${escapeHtml(m.text)}<span class="meta">${timeShort(m.createdAt)}</span></div>`;
+      return `<div class="bubble" data-msg-id="${m.id}">${escapeHtml(m.text)}<span class="meta">${timeShort(m.createdAt)}</span></div>`;
     }
     if(m.kind === 'image'){
-      return `<div class="bubble file"><img src="${m.data}" alt=""><div>${escapeHtml(m.name || 'Фото')}</div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
+      return `<div class="bubble file" data-msg-id="${m.id}"><img src="${m.data}" alt=""><div>${escapeHtml(m.name || 'Фото')}</div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
     }
     if(m.kind === 'video' || m.kind === 'circle'){
       const cls = m.kind === 'circle' ? 'style="border-radius:50%;aspect-ratio:1/1;object-fit:cover;max-width:240px"' : '';
-      return `<div class="bubble file"><video ${cls} src="${m.data}" controls playsinline></video><div>${escapeHtml(m.name || (m.kind === 'circle' ? 'Кружок' : 'Видео'))}</div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
+      return `<div class="bubble file" data-msg-id="${m.id}"><video ${cls} src="${m.data}" controls playsinline></video><div>${escapeHtml(m.name || (m.kind === 'circle' ? 'Кружок' : 'Видео'))}</div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
     }
     if(m.kind === 'audio'){
-      return `<div class="bubble file"><audio src="${m.data}" controls></audio><span class="meta">${timeShort(m.createdAt)}</span></div>`;
+      return `<div class="bubble file" data-msg-id="${m.id}"><audio src="${m.data}" controls></audio><span class="meta">${timeShort(m.createdAt)}</span></div>`;
     }
-    return `<div class="bubble file"><div class="fileBox"><div class="fileIcon">📎</div><div style="min-width:0"><div class="fileName">${escapeHtml(m.name || 'Файл')}</div><div class="fileSize">${formatSize(m.size || 0)}</div></div></div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
+    return `<div class="bubble file" data-msg-id="${m.id}"><div class="fileBox"><div class="fileIcon">📎</div><div style="min-width:0"><div class="fileName">${escapeHtml(m.name || 'Файл')}</div><div class="fileSize">${formatSize(m.size || 0)}</div></div></div><span class="meta">${timeShort(m.createdAt)}</span></div>`;
   }
+
+
+  function bindMessageActions(){
+    document.querySelectorAll('[data-msg-id]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        showMsgMenu(el.dataset.msgId, e);
+      });
+    });
+
+    const unpin = $('unpinBtn');
+    if(unpin){
+      unpin.onclick = e => {
+        e.stopPropagation();
+        const note = currentItem();
+        if(note) note.pinnedMsgId = null;
+        save();
+        renderMessages();
+      };
+    }
+
+    document.querySelectorAll('[data-jump-pin]').forEach(el => {
+      el.addEventListener('click', e => {
+        if(e.target.id === 'unpinBtn') return;
+        const target = document.querySelector(`[data-msg-id="${el.dataset.jumpPin}"]`);
+        if(target) target.scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+  }
+
+  function showMsgMenu(msgId, event){
+    selectedMsgId = msgId;
+    document.querySelectorAll('.bubble.selected').forEach(x => x.classList.remove('selected'));
+    const bubble = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if(bubble) bubble.classList.add('selected');
+
+    const overlay = $('actionOverlay');
+    const menu = $('msgMenu');
+    overlay.style.display = 'block';
+    menu.style.display = 'block';
+
+    const rect = bubble ? bubble.getBoundingClientRect() : {left:event.clientX, top:event.clientY, bottom:event.clientY};
+    const phoneRect = document.querySelector('.phone').getBoundingClientRect();
+    const menuW = 210;
+    const menuH = 144;
+
+    let left = Math.min(rect.right - phoneRect.left - menuW, phoneRect.width - menuW - 10);
+    left = Math.max(10, left);
+
+    let top = rect.bottom - phoneRect.top + 8;
+    if(top + menuH > phoneRect.height - 90) top = rect.top - phoneRect.top - menuH - 8;
+    top = Math.max(70, top);
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+
+    const msg = getSelectedMsg();
+    $('editMsgBtn').style.display = msg?.kind === 'text' ? 'flex' : 'none';
+    $('pinMsgBtn').textContent = currentItem()?.pinnedMsgId === msgId ? '📌 Открепить' : '📌 Закрепить';
+  }
+
+  function hideMsgMenu(){
+    $('actionOverlay').style.display = 'none';
+    $('msgMenu').style.display = 'none';
+    document.querySelectorAll('.bubble.selected').forEach(x => x.classList.remove('selected'));
+  }
+
+  function getSelectedMsg(){
+    const msgs = db.messages[route.id] || [];
+    return msgs.find(m => m.id === selectedMsgId);
+  }
+
+  function editSelectedMsg(){
+    const msg = getSelectedMsg();
+    if(!msg || msg.kind !== 'text') return;
+    hideMsgMenu();
+    $('editMsgText').value = msg.text || '';
+    $('editModalBg').style.display = 'flex';
+    setTimeout(() => $('editMsgText').focus(), 50);
+  }
+
+  function saveEditedMsg(){
+    const msg = getSelectedMsg();
+    if(!msg || msg.kind !== 'text') return;
+    msg.text = $('editMsgText').value.trim();
+    msg.editedAt = now();
+
+    const note = currentItem();
+    if(note){
+      const msgs = db.messages[route.id] || [];
+      const last = msgs[msgs.length - 1];
+      if(last?.id === msg.id) note.last = preview(msg);
+      note.updatedAt = now();
+    }
+
+    save();
+    $('editModalBg').style.display = 'none';
+    renderMessages();
+  }
+
+  function deleteSelectedMsg(){
+    const msg = getSelectedMsg();
+    if(!msg) return;
+    if(!confirm('Удалить сообщение?')) return;
+    const msgs = db.messages[route.id] || [];
+    db.messages[route.id] = msgs.filter(m => m.id !== selectedMsgId);
+
+    const note = currentItem();
+    if(note){
+      if(note.pinnedMsgId === selectedMsgId) note.pinnedMsgId = null;
+      const newMsgs = db.messages[route.id] || [];
+      note.last = newMsgs.length ? preview(newMsgs[newMsgs.length - 1]) : '';
+      note.updatedAt = now();
+    }
+
+    hideMsgMenu();
+    save();
+    renderMessages();
+  }
+
+  function togglePinSelectedMsg(){
+    const note = currentItem();
+    if(!note || !selectedMsgId) return;
+    note.pinnedMsgId = note.pinnedMsgId === selectedMsgId ? null : selectedMsgId;
+    hideMsgMenu();
+    save();
+    renderMessages();
+  }
+
 
   function openCreate(){
     $('modalBg').style.display = 'flex';
@@ -641,6 +811,28 @@
     e.preventDefault();
     stopAudio();
   }, {passive:false});
+
+
+  $('actionOverlay').addEventListener('click', hideMsgMenu);
+  $('editMsgBtn').addEventListener('click', editSelectedMsg);
+  $('deleteMsgBtn').addEventListener('click', deleteSelectedMsg);
+  $('pinMsgBtn').addEventListener('click', togglePinSelectedMsg);
+  $('editCancelBtn').addEventListener('click', () => $('editModalBg').style.display = 'none');
+  $('editSaveBtn').addEventListener('click', saveEditedMsg);
+
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('gesturechange', e => e.preventDefault());
+  document.addEventListener('gestureend', e => e.preventDefault());
+  document.addEventListener('touchmove', e => {
+    if(e.touches && e.touches.length > 1) e.preventDefault();
+  }, {passive:false});
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const nowTime = Date.now();
+    if(nowTime - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = nowTime;
+  }, {passive:false});
+
 
   drawIdleEqualizer();
   render();
