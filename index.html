@@ -608,8 +608,72 @@ function visibleMessages(topic){
 function lastMessage(topic){ const msgs=topic.messages.filter(m=>!m.deletedAt); if(!msgs.length) return "Нет сообщений"; const pins=msgs.filter(m=>m.pinned).length; const last=msgs.at(-1); return (pins?"📌 ":"") + (last.text || attachmentLabel(last) || "Вложение"); }
 function render(){ renderGroups(); renderTopics(); renderMessages(); }
 function renderGroups(){
-  const groups=["Все",...state.groups.map(g=>g.name)]; if(currentGroupFilter!=="Все"&&!state.groups.some(g=>g.name===currentGroupFilter)) currentGroupFilter="Все";
-  els.tabs.innerHTML=""; groups.forEach(name=>{ const btn=document.createElement("button"); btn.className="tab"+(name===currentGroupFilter?" active":""); btn.type="button"; btn.textContent=name; btn.onclick=()=>{currentGroupFilter=name;renderGroups();renderTopics();}; els.tabs.appendChild(btn); });
+  const systemTabs=[
+    {key:"all", label:"Все"},
+    {key:"favorites", label:"Избранное"},
+    {key:"archive", label:"Архив"},
+    {key:"trash", label:"Корзина"}
+  ];
+  if(currentGroupFilter!=="Все"&&!state.groups.some(g=>g.name===currentGroupFilter)) currentGroupFilter="Все";
+  els.tabs.innerHTML="";
+
+  systemTabs.forEach(tabData=>{
+    const btn=document.createElement("button");
+    const active =
+      (tabData.key==="all" && currentView==="topic" && currentGroupFilter==="Все" && !showFavoritesOnly && !showTrash) ||
+      (tabData.key==="favorites" && currentView==="favorites") ||
+      (tabData.key==="archive" && currentView==="archive") ||
+      (tabData.key==="trash" && currentView==="trash");
+    btn.className="tab systemTab"+(active?" active":"");
+    btn.type="button";
+    btn.textContent=tabData.label;
+    btn.onclick=()=>{
+      closeMenus();
+      currentGroupFilter="Все";
+      if(tabData.key==="all"){
+        currentView="topic";
+        showFavoritesOnly=false;
+        showTrash=false;
+        const firstVisible=sortedTopicsAll().find(t=>!t.archived);
+        if(firstVisible && (!currentTopicId || currentTopic()?.archived)) currentTopicId=firstVisible.id;
+      } else if(tabData.key==="favorites"){
+        currentView="favorites";
+        showFavoritesOnly=true;
+        showTrash=false;
+      } else if(tabData.key==="archive"){
+        currentView="archive";
+        showFavoritesOnly=false;
+        showTrash=false;
+      } else if(tabData.key==="trash"){
+        currentView="trash";
+        showFavoritesOnly=false;
+        showTrash=true;
+      }
+      render();
+      if(window.innerWidth<=900) els.body.classList.add("chatOpen");
+    };
+    els.tabs.appendChild(btn);
+  });
+
+  state.groups.forEach(g=>{
+    const btn=document.createElement("button");
+    const active=currentView==="topic" && currentGroupFilter===g.name && !showFavoritesOnly && !showTrash;
+    btn.className="tab"+(active?" active":"");
+    btn.type="button";
+    btn.textContent=g.name;
+    btn.onclick=()=>{
+      closeMenus();
+      currentView="topic";
+      currentGroupFilter=g.name;
+      showFavoritesOnly=false;
+      showTrash=false;
+      const firstInGroup=sortedTopicsAll().find(t=>!t.archived && groupById(t.groupId)?.name===g.name);
+      if(firstInGroup) currentTopicId=firstInGroup.id;
+      render();
+    };
+    els.tabs.appendChild(btn);
+  });
+
   els.groupList.innerHTML=""; state.groups.forEach(g=>{ const opt=document.createElement("option"); opt.value=g.name; els.groupList.appendChild(opt); });
 }
 function filteredTopics(){
@@ -621,6 +685,8 @@ function filteredTopics(){
     const inGroup=currentGroupFilter==="Все"||group?.name===currentGroupFilter;
     const inSearch=!q||full.includes(q)||t.messages.some(m=>!m.deletedAt&&String(m.text).toLowerCase().includes(q));
     const inArchive = archiveMode ? !!t.archived : !t.archived;
+    if(currentView==="favorites") return !t.archived && inGroup && inSearch && t.messages.some(m=>m.favorite&&!m.deletedAt);
+    if(currentView==="trash") return !t.archived && inGroup && inSearch && t.messages.some(m=>m.deletedAt);
     return inArchive&&inGroup&&inSearch;
   });
 }
@@ -650,10 +716,7 @@ function renderSystemItem(kind){
 }
 function renderTopics(){
   const topics=filteredTopics(); els.chatList.innerHTML="";
-  renderSystemItem("favorites");
-  renderSystemItem("trash");
-  renderSystemItem("archive");
-  if(!topics.length){ const empty=document.createElement("div"); empty.className="emptyList"; empty.innerHTML=(currentView==="archive"?"Архив пуст<br>Свайпни подтему влево или нажми ⋯ → В архив":"Подтем не найдено<br>Нажми плюсик, чтобы создать подтему"); els.chatList.appendChild(empty); return; }
+  if(!topics.length){ const empty=document.createElement("div"); empty.className="emptyList"; empty.innerHTML=(currentView==="archive"?"Архив пуст<br>Свайпни подтему влево или нажми ⋯ → В архив":currentView==="favorites"?"Избранного пока нет<br>Отметь сообщение звездой":currentView==="trash"?"Корзина пустая<br>Удалённые сообщения появятся здесь":"Подтем не найдено<br>Нажми плюсик, чтобы создать подтему"); els.chatList.appendChild(empty); return; }
   topics.forEach(topic=>{ const item=document.createElement("div"); item.className="chatItem"+(topic.archived?" archived":"")+(currentTopicId===topic.id?" active":""); item.draggable=true; item.dataset.id=topic.id; item.style.position="relative"; item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(initials(topic))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(fullTopicName(topic))}</div><div class="chatTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</div></div><div class="chatPreview">${escapeHtml(lastMessage(topic))}</div></div><button class="topicMore" type="button">⋯</button><div class="swipeHint">Отпусти: ${topic.archived?"вернуть":"в архив"}</div>`;
     item.querySelector(".topicMore").addEventListener("click",e=>{e.stopPropagation();openTopicActions(topic.id,e.clientX,e.clientY);});
     bindSwipeArchive(item, topic.id);
