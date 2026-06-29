@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Telegram Notes v1.2</title>
+<title>Telegram Notes v1.3</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
@@ -148,8 +148,13 @@ button{cursor:pointer}
     <div id="pinnedBar" class="pinnedBar hidden"></div>
     <div id="messages"></div>
     <div id="composer">
+      <button id="attachBtn" type="button" title="Вложения">＋</button>
       <input id="messageInput" placeholder="Сообщение" autocomplete="off">
       <button id="sendBtn" type="button">↑</button>
+      <input id="mediaInput" type="file" accept="image/*,video/*" multiple hidden>
+      <input id="cameraInput" type="file" accept="image/*,video/*" capture="environment" hidden>
+      <input id="audioInput" type="file" accept="audio/*" multiple hidden>
+      <input id="fileInput" type="file" multiple hidden>
     </div>
   </main>
 </div>
@@ -195,12 +200,25 @@ button{cursor:pointer}
   <button id="newGroupMenuBtn" class="menuBtn" type="button">Новая группа</button>
 </div>
 
+
+<div id="attachMenu" class="hidden">
+  <button id="pickMediaBtn" class="menuBtn" type="button">Фото/Видео</button>
+  <button id="pickCameraBtn" class="menuBtn" type="button">Камера</button>
+  <button id="pickAudioBtn" class="menuBtn" type="button">Аудио</button>
+  <button id="pickFileBtn" class="menuBtn" type="button">Файл</button>
+</div>
+
+<div id="mediaViewer" class="hidden">
+  <button id="closeViewerBtn" type="button">×</button>
+  <img id="viewerImg" alt="Просмотр">
+</div>
+
 <script>
 (function(){
 "use strict";
 
-const STORAGE_KEY = "telegram_notes_ios_v12";
-const OLD_KEYS = ["telegram_notes_ios_v11", "telegram_notes_ios_v1"];
+const STORAGE_KEY = "telegram_notes_ios_v13";
+const OLD_KEYS = ["telegram_notes_ios_v12", "telegram_notes_ios_v11", "telegram_notes_ios_v1"];
 const $ = (id) => document.getElementById(id);
 
 const els = {
@@ -211,7 +229,8 @@ const els = {
   chatTitle: $("chatTitle"), chatStatus: $("chatStatus"), headerAvatar: $("headerAvatar"), backBtn: $("backBtn"), chatMenuBtn: $("chatMenuBtn"),
   msgMenu: $("msgMenu"), editMsgBtn: $("editMsgBtn"), copyMsgBtn: $("copyMsgBtn"), deleteMsgBtn: $("deleteMsgBtn"), pinMsgBtn: $("pinMsgBtn"), favMsgBtn: $("favMsgBtn"), restoreMsgBtn: $("restoreMsgBtn"), deleteForeverMsgBtn: $("deleteForeverMsgBtn"),
   chatActions: $("chatActions"), toggleMsgSearchBtn: $("toggleMsgSearchBtn"), toggleFavoritesBtn: $("toggleFavoritesBtn"), toggleTrashBtn: $("toggleTrashBtn"), sortDateBtn: $("sortDateBtn"), renameTopicBtn: $("renameTopicBtn"), deleteTopicBtn: $("deleteTopicBtn"),
-  plusMenu: $("plusMenu"), newTopicMenuBtn: $("newTopicMenuBtn"), newGroupMenuBtn: $("newGroupMenuBtn")
+  plusMenu: $("plusMenu"), newTopicMenuBtn: $("newTopicMenuBtn"), newGroupMenuBtn: $("newGroupMenuBtn"),
+  attachBtn: $("attachBtn"), attachMenu: $("attachMenu"), pickMediaBtn: $("pickMediaBtn"), pickCameraBtn: $("pickCameraBtn"), pickAudioBtn: $("pickAudioBtn"), pickFileBtn: $("pickFileBtn"), mediaInput: $("mediaInput"), cameraInput: $("cameraInput"), audioInput: $("audioInput"), fileInput: $("fileInput"), mediaViewer: $("mediaViewer"), viewerImg: $("viewerImg"), closeViewerBtn: $("closeViewerBtn")
 };
 
 let state = load();
@@ -230,11 +249,20 @@ let dragTopicId = null;
 function uid(){ return "id_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,9); }
 function timeNow(){ return new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); }
 function escapeHtml(value){ return String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+function bytesText(n){ n=Number(n)||0; if(n<1024) return n+" Б"; if(n<1024*1024) return Math.round(n/1024)+" КБ"; return (n/1024/1024).toFixed(1).replace(".",",")+" МБ"; }
+function attachmentLabel(msg){ const a=msg?.attachments?.[0]; if(!a) return ""; if(a.type?.startsWith("image/")) return "Фото"; if(a.type?.startsWith("video/")) return "Видео"; if(a.type?.startsWith("audio/")) return "Аудио"; return a.name||"Файл"; }
+function fileToDataUrl(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+function renderAttachments(msg){ const list=msg.attachments||[]; if(!list.length) return ""; const items=list.map((a,idx)=>{ const name=escapeHtml(a.name||"Файл"); const size=escapeHtml(bytesText(a.size)); const url=a.dataUrl; if((a.type||"").startsWith("image/")) return `<img class="mediaImg" data-img="${idx}" src="${url}" alt="${name}">`; if((a.type||"").startsWith("video/")) return `<video class="mediaVideo" src="${url}" controls playsinline></video>`; if((a.type||"").startsWith("audio/")) return `<audio class="mediaAudio" src="${url}" controls></audio>`; return `<a class="fileCard" href="${url}" download="${name}"><div class="fileIcon">📎</div><div class="fileInfo"><div class="fileName">${name}</div><div class="fileSize">${size}</div></div></a>`; }).join(""); return `<div class="mediaGrid">${items}</div>`; }
+function messageHtml(msg, showTopic){ const topicLine=showTopic?`<div style="font-size:12px;color:#6d6d72;margin-bottom:4px">${escapeHtml(fullTopicName(msg._topic))}</div>`:""; const text=msg.text?`<div>${escapeHtml(msg.text)}</div>`:""; return `${topicLine}${renderAttachments(msg)}${text}<span class="msgTime">${escapeHtml(msg.time)}</span>`; }
+async function addFilesAsMessage(fileList){ if(currentView!=="topic") return; const topic=currentTopic(); if(!topic) return; const files=[...fileList].filter(Boolean); if(!files.length) return; const attachments=[]; for(const f of files){ attachments.push({id:uid(), name:f.name||"Файл", type:f.type||"application/octet-stream", size:f.size||0, dataUrl:await fileToDataUrl(f)}); } const text=els.messageInput.value.trim(); topic.messages.push({id:uid(),text,time:timeNow(),createdAt:Date.now(),pinned:false,favorite:false,attachments}); els.messageInput.value=""; save(); render(); }
+function openImageViewer(src){ els.viewerImg.src=src; els.mediaViewer.classList.remove("hidden"); }
+function closeImageViewer(){ els.mediaViewer.classList.add("hidden"); els.viewerImg.src=""; }
+
 function splitLegacyName(name){ const parts=String(name||"").split("/"); return parts.length>=2 ? {group:parts[0].trim()||"Без группы", topic:parts.slice(1).join("/").trim()||"Без названия"} : {group:"Без группы", topic:String(name||"Без названия").trim()}; }
-function defaultState(){ const now=Date.now(); const g1={id:uid(),name:"Выпускные",createdAt:now}, g2={id:uid(),name:"Мафия",createdAt:now}, g3={id:uid(),name:"Контент",createdAt:now}; return {groups:[g1,g2,g3],topics:[{id:uid(),groupId:g1.id,name:"Конкурсы",createdAt:now,messages:[{id:uid(),text:"Версия 1.2: закрепы, избранное, корзина, поиск, сортировка и перетаскивание подтем.",time:timeNow(),createdAt:now,pinned:true}]},{id:uid(),groupId:g1.id,name:"Музыка",createdAt:now,messages:[]},{id:uid(),groupId:g2.id,name:"Идеи",createdAt:now,messages:[]},{id:uid(),groupId:g3.id,name:"VK",createdAt:now,messages:[]}]}; }
+function defaultState(){ const now=Date.now(); const g1={id:uid(),name:"Выпускные",createdAt:now}, g2={id:uid(),name:"Мафия",createdAt:now}, g3={id:uid(),name:"Контент",createdAt:now}; return {groups:[g1,g2,g3],topics:[{id:uid(),groupId:g1.id,name:"Конкурсы",createdAt:now,messages:[{id:uid(),text:"Версия 1.3: добавлены фото, видео, аудио и файлы прямо в заметки.",time:timeNow(),createdAt:now,pinned:true}]},{id:uid(),groupId:g1.id,name:"Музыка",createdAt:now,messages:[]},{id:uid(),groupId:g2.id,name:"Идеи",createdAt:now,messages:[]},{id:uid(),groupId:g3.id,name:"VK",createdAt:now,messages:[]}]}; }
 function normalize(s){
   if(!s || !Array.isArray(s.groups) || !Array.isArray(s.topics)) return defaultState();
-  s.topics.forEach((t,i)=>{ t.order = Number.isFinite(t.order) ? t.order : i; t.messages = Array.isArray(t.messages) ? t.messages : []; t.messages.forEach(m=>{ m.createdAt=m.createdAt||Date.now(); m.time=m.time||timeNow(); m.pinned=!!m.pinned; m.favorite=!!m.favorite; }); });
+  s.topics.forEach((t,i)=>{ t.order = Number.isFinite(t.order) ? t.order : i; t.messages = Array.isArray(t.messages) ? t.messages : []; t.messages.forEach(m=>{ m.createdAt=m.createdAt||Date.now(); m.time=m.time||timeNow(); m.pinned=!!m.pinned; m.favorite=!!m.favorite; m.attachments=Array.isArray(m.attachments)?m.attachments:[]; }); });
   return s;
 }
 function migrateFromV1(old){ const s={groups:[],topics:[]}, map=new Map(); const gid=n=>{ if(!map.has(n)){ const id=uid(); map.set(n,id); s.groups.push({id,name:n,createdAt:Date.now()}); } return map.get(n);}; (old.chats||[]).forEach((c,i)=>{ const p=splitLegacyName(c.name); s.topics.push({id:c.id||uid(),groupId:gid(p.group),name:p.topic,createdAt:c.createdAt||Date.now(),order:i,messages:Array.isArray(c.messages)?c.messages:[]}); }); return normalize(s); }
@@ -260,7 +288,7 @@ function visibleMessages(topic){
   if(!sortNewestFirst){ arr.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0) || (a.createdAt||0)-(b.createdAt||0)); }
   return arr;
 }
-function lastMessage(topic){ const msgs=topic.messages.filter(m=>!m.deletedAt); if(!msgs.length) return "Нет сообщений"; const pins=msgs.filter(m=>m.pinned).length; return (pins?"📌 ":"") + (msgs.at(-1).text || "Вложение"); }
+function lastMessage(topic){ const msgs=topic.messages.filter(m=>!m.deletedAt); if(!msgs.length) return "Нет сообщений"; const pins=msgs.filter(m=>m.pinned).length; const last=msgs.at(-1); return (pins?"📌 ":"") + (last.text || attachmentLabel(last) || "Вложение"); }
 function render(){ renderGroups(); renderTopics(); renderMessages(); }
 function renderGroups(){
   const groups=["Все",...state.groups.map(g=>g.name)]; if(currentGroupFilter!=="Все"&&!state.groups.some(g=>g.name===currentGroupFilter)) currentGroupFilter="Все";
@@ -341,7 +369,7 @@ function renderMessages(){
     els.headerAvatar.textContent=isFav?"⭐":"🗑";
     els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
     els.pinnedBar.classList.add("hidden");
-    els.messageInput.disabled=true;
+    els.messageInput.disabled=true; els.attachBtn.disabled=true;
     els.messageInput.placeholder=isFav?"В Избранном писать нельзя":"В Корзине писать нельзя";
     els.sendBtn.disabled=true;
     els.messages.innerHTML='<div class="dateSep">Сегодня</div>';
@@ -350,22 +378,22 @@ function renderMessages(){
     const q=els.msgSearchInput.value.trim().toLowerCase();
     if(q) msgs=msgs.filter(m=>String(m.text).toLowerCase().includes(q)||fullTopicName(m._topic).toLowerCase().includes(q));
     if(!msgs.length){ const empty=document.createElement("div"); empty.className="welcome"; empty.innerHTML=isFav?"Избранных заметок пока нет":"Корзина пустая"; els.messages.appendChild(empty); return; }
-    msgs.forEach(msg=>{ const div=document.createElement("div"); div.className="msg"+(msg.pinned?" pin":"")+(msg.favorite?" fav":"")+(msg.deletedAt?" deleted":""); div.dataset.id=msg.id; div.innerHTML=`<div style="font-size:12px;color:#6d6d72;margin-bottom:4px">${escapeHtml(fullTopicName(msg._topic))}</div>${escapeHtml(msg.text)}<span class="msgTime">${escapeHtml(msg.time)}</span>`;
+    msgs.forEach(msg=>{ const div=document.createElement("div"); div.className="msg"+(msg.pinned?" pin":"")+(msg.favorite?" fav":"")+(msg.deletedAt?" deleted":""); div.dataset.id=msg.id; div.innerHTML=messageHtml(msg,true);
       let timer=null; div.addEventListener("touchstart",e=>{ if(!e.touches?.[0]) return; const x=e.touches[0].clientX,y=e.touches[0].clientY; timer=setTimeout(()=>openMessageMenu(msg.id,x,y,msg._topic.id),420); },{passive:true}); div.addEventListener("touchmove",()=>timer&&clearTimeout(timer),{passive:true}); div.addEventListener("touchend",()=>timer&&clearTimeout(timer),{passive:true}); div.addEventListener("contextmenu",e=>{ e.preventDefault(); openMessageMenu(msg.id,e.clientX,e.clientY,msg._topic.id); }); els.messages.appendChild(div); });
     return;
   }
-  els.messageInput.disabled=false; els.messageInput.placeholder="Сообщение"; els.sendBtn.disabled=false;
+  els.messageInput.disabled=false; els.attachBtn.disabled=false; els.messageInput.placeholder="Сообщение"; els.sendBtn.disabled=false;
   const topic=currentTopic();
   if(!topic){ els.chatTitle.textContent="Telegram Notes"; els.chatStatus.textContent="Личные заметки"; els.headerAvatar.textContent="T"; els.pinnedBar.classList.add("hidden"); els.messages.innerHTML='<div class="welcome">Выберите подтему<br>или создай новую через плюсик</div>'; return; }
   els.chatTitle.textContent=fullTopicName(topic); const live=topic.messages.filter(m=>!m.deletedAt).length, trash=topic.messages.filter(m=>m.deletedAt).length; els.chatStatus.textContent=(showTrash?`Корзина: ${trash}`:showFavoritesOnly?`Избранное: ${topic.messages.filter(m=>m.favorite&&!m.deletedAt).length}`:`${live} заметок`); els.headerAvatar.textContent=initials(topic);
   els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
-  const pinned=topic.messages.filter(m=>m.pinned&&!m.deletedAt); if(pinned.length&&!showTrash){ els.pinnedBar.innerHTML=`<span>📌</span><div class="pinnedText">${escapeHtml(pinned[0].text)}</div>`; els.pinnedBar.classList.remove("hidden"); } else els.pinnedBar.classList.add("hidden");
+  const pinned=topic.messages.filter(m=>m.pinned&&!m.deletedAt); if(pinned.length&&!showTrash){ els.pinnedBar.innerHTML=`<span>📌</span><div class="pinnedText">${escapeHtml(pinned[0].text || attachmentLabel(pinned[0]))}</div>`; els.pinnedBar.classList.remove("hidden"); } else els.pinnedBar.classList.add("hidden");
   els.messages.innerHTML='<div class="dateSep">Сегодня</div>';
   if(showTrash) els.messages.innerHTML += '<div class="trashNotice">Корзина этой подтемы. Здесь можно восстановить или удалить навсегда.</div>';
   if(showFavoritesOnly) els.messages.innerHTML += '<div class="trashNotice">Показаны только избранные заметки этой подтемы.</div>';
   const msgs=visibleMessages(topic);
   if(!msgs.length){ const empty=document.createElement("div"); empty.className="welcome"; empty.innerHTML=showTrash?"Корзина пустая":showFavoritesOnly?"Избранных заметок пока нет":"Пока пусто<br>Напиши первую заметку снизу"; els.messages.appendChild(empty); return; }
-  msgs.forEach(msg=>{ const div=document.createElement("div"); div.className="msg"+(editingMessageId===msg.id?" editing":"")+(msg.pinned?" pin":"")+(msg.favorite?" fav":"")+(msg.deletedAt?" deleted":""); div.dataset.id=msg.id; div.innerHTML=`${escapeHtml(msg.text)}<span class="msgTime">${escapeHtml(msg.time)}</span>`;
+  msgs.forEach(msg=>{ const div=document.createElement("div"); div.className="msg"+(editingMessageId===msg.id?" editing":"")+(msg.pinned?" pin":"")+(msg.favorite?" fav":"")+(msg.deletedAt?" deleted":""); div.dataset.id=msg.id; div.innerHTML=messageHtml(msg,false);
     let timer=null; div.addEventListener("touchstart",e=>{ if(!e.touches?.[0]) return; const x=e.touches[0].clientX,y=e.touches[0].clientY; timer=setTimeout(()=>openMessageMenu(msg.id,x,y),420); },{passive:true}); div.addEventListener("touchmove",()=>timer&&clearTimeout(timer),{passive:true}); div.addEventListener("touchend",()=>timer&&clearTimeout(timer),{passive:true}); div.addEventListener("contextmenu",e=>{ e.preventDefault(); openMessageMenu(msg.id,e.clientX,e.clientY); }); div.addEventListener("dblclick",()=>!showTrash&&startEditMessage(msg.id)); els.messages.appendChild(div); });
   requestAnimationFrame(()=>{ els.messages.scrollTop = sortNewestFirst ? 0 : els.messages.scrollHeight; });
 }
@@ -375,7 +403,7 @@ function openTopicModal(mode){ modalMode=mode||"createTopic"; closeMenus(); cons
 function closeTopicModal(){ els.topicModal.classList.add("hidden"); els.groupInput.value=""; els.topicInput.value=""; modalMode="createTopic"; }
 function findOrCreateGroup(name){ let group=state.groups.find(g=>g.name.toLowerCase()===name.toLowerCase()); if(group) return group; group={id:uid(),name,createdAt:Date.now()}; state.groups.push(group); return group; }
 function saveTopicFromModal(){ const groupName=els.groupInput.value.trim(); const topicName=els.topicInput.value.trim()||"Общее"; if(!groupName){els.groupInput.focus();return;} if(modalMode==="renameTopic"){ const topic=currentTopic(); if(topic){ const group=findOrCreateGroup(groupName); topic.groupId=group.id; topic.name=topicName; currentGroupFilter="Все"; } } else { const group=findOrCreateGroup(groupName); const min=Math.min(0,...state.topics.map(t=>t.order??0)); const topic={id:uid(),groupId:group.id,name:topicName,createdAt:Date.now(),order:min-1,messages:[]}; state.topics.unshift(topic); currentTopicId=topic.id; currentView="topic"; currentGroupFilter="Все"; if(window.innerWidth<=900) els.body.classList.add("chatOpen"); } save(); closeTopicModal(); render(); }
-function sendMessage(){ if(currentView!=="topic") return; const text=els.messageInput.value.trim(); if(!text) return; const topic=currentTopic(); if(!topic){openTopicModal("createTopic");return;} if(showTrash){ showTrash=false; } if(editingMessageId){ const msg=topic.messages.find(m=>m.id===editingMessageId&&!m.deletedAt); if(msg){msg.text=text;msg.editedAt=Date.now();} editingMessageId=null; } else topic.messages.push({id:uid(),text,time:timeNow(),createdAt:Date.now(),pinned:false,favorite:false}); els.messageInput.value=""; save(); render(); }
+function sendMessage(){ if(currentView!=="topic") return; const text=els.messageInput.value.trim(); if(!text) return; const topic=currentTopic(); if(!topic){openTopicModal("createTopic");return;} if(showTrash){ showTrash=false; } if(editingMessageId){ const msg=topic.messages.find(m=>m.id===editingMessageId&&!m.deletedAt); if(msg){msg.text=text;msg.editedAt=Date.now();} editingMessageId=null; } else topic.messages.push({id:uid(),text,time:timeNow(),createdAt:Date.now(),pinned:false,favorite:false,attachments:[]}); els.messageInput.value=""; save(); render(); }
 let selectedMessageTopicId = null;
 function selectedMsg(){ const topic= selectedMessageTopicId ? state.topics.find(t=>t.id===selectedMessageTopicId) : currentTopic(); return topic?.messages.find(m=>m.id===selectedMessageId); }
 function selectedMsgTopic(){ return selectedMessageTopicId ? state.topics.find(t=>t.id===selectedMessageTopicId) : currentTopic(); }
@@ -383,7 +411,9 @@ function openMessageMenu(messageId,x,y,topicId){ selectedMessageId=messageId; se
 function closeMessageMenu(){ els.msgMenu.classList.add("hidden"); }
 function openChatActions(){ closeMessageMenu(); closePlusMenu(); els.toggleFavoritesBtn.textContent=showFavoritesOnly?"Показать все":"Показать избранное"; els.toggleTrashBtn.textContent=showTrash?"Выйти из корзины":"Корзина"; els.sortDateBtn.textContent=sortNewestFirst?"Сначала старые":"Сначала новые"; const r=els.chatMenuBtn.getBoundingClientRect(); els.chatActions.style.left=Math.max(8,Math.min(r.right-230,window.innerWidth-238))+"px"; els.chatActions.style.top=(r.bottom+6)+"px"; els.chatActions.classList.toggle("hidden"); }
 function closeChatActions(){ els.chatActions.classList.add("hidden"); }
-function closeMenus(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); }
+function closeAttachMenu(){ els.attachMenu.classList.add("hidden"); }
+function closeMenus(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); closeAttachMenu(); }
+function openAttachMenu(){ closeMessageMenu(); closeChatActions(); closePlusMenu(); const r=els.attachBtn.getBoundingClientRect(); els.attachMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-238))+"px"; els.attachMenu.style.top=Math.max(8,r.top-190)+"px"; els.attachMenu.classList.toggle("hidden"); }
 function startEditMessage(id){ if(currentView!=="topic") return; const topic=currentTopic(); const msg=topic?.messages.find(m=>m.id===id&&!m.deletedAt); if(!msg) return; editingMessageId=id; els.messageInput.value=msg.text; closeMenus(); renderMessages(); setTimeout(()=>{els.messageInput.focus();els.messageInput.setSelectionRange(els.messageInput.value.length,els.messageInput.value.length);},30); }
 function deleteMessage(){ const msg=selectedMsg(); if(!msg) return; msg.deletedAt=Date.now(); if(editingMessageId===selectedMessageId){editingMessageId=null;els.messageInput.value="";} selectedMessageId=null; selectedMessageTopicId=null; save(); closeMenus(); render(); }
 function restoreMessage(){ const msg=selectedMsg(); if(!msg) return; delete msg.deletedAt; selectedMessageId=null; selectedMessageTopicId=null; save(); closeMenus(); render(); }
@@ -393,6 +423,18 @@ function toggleFavorite(){ const msg=selectedMsg(); if(!msg||msg.deletedAt) retu
 async function copyMessage(){ const msg=selectedMsg(); if(!msg) return; try{ await navigator.clipboard.writeText(msg.text); }catch(e){ const temp=document.createElement("textarea"); temp.value=msg.text; document.body.appendChild(temp); temp.select(); document.execCommand("copy"); temp.remove(); } closeMenus(); }
 function deleteTopic(){ const topic=currentTopic(); if(!topic) return; if(!confirm("Удалить подтему «"+fullTopicName(topic)+"»?")) return; state.topics=state.topics.filter(t=>t.id!==topic.id); const used=new Set(state.topics.map(t=>t.groupId)); state.groups=state.groups.filter(g=>used.has(g.id)); currentTopicId=firstTopicId(); currentView=currentTopicId?"topic":"favorites"; editingMessageId=null; selectedMessageId=null; save(); closeMenus(); if(!currentTopicId) els.body.classList.remove("chatOpen"); render(); }
 function bind(){
+  els.attachBtn.onclick=e=>{e.stopPropagation(); if(!els.attachBtn.disabled) openAttachMenu();};
+  els.pickMediaBtn.onclick=()=>{closeAttachMenu(); els.mediaInput.click();};
+  els.pickCameraBtn.onclick=()=>{closeAttachMenu(); els.cameraInput.click();};
+  els.pickAudioBtn.onclick=()=>{closeAttachMenu(); els.audioInput.click();};
+  els.pickFileBtn.onclick=()=>{closeAttachMenu(); els.fileInput.click();};
+  els.mediaInput.onchange=e=>{addFilesAsMessage(e.target.files); e.target.value="";};
+  els.cameraInput.onchange=e=>{addFilesAsMessage(e.target.files); e.target.value="";};
+  els.audioInput.onchange=e=>{addFilesAsMessage(e.target.files); e.target.value="";};
+  els.fileInput.onchange=e=>{addFilesAsMessage(e.target.files); e.target.value="";};
+  els.messages.addEventListener("click",e=>{ const img=e.target.closest(".mediaImg"); if(img) openImageViewer(img.src); });
+  els.closeViewerBtn.onclick=closeImageViewer; els.mediaViewer.onclick=e=>{ if(e.target===els.mediaViewer) closeImageViewer(); };
+
   els.newChatBtn.onclick=e=>{e.stopPropagation();openPlusMenu();}; els.newTopicMenuBtn.onclick=()=>openTopicModal("createTopic"); els.newGroupMenuBtn.onclick=()=>openTopicModal("createGroup");
   els.saveTopicBtn.onclick=saveTopicFromModal; els.cancelTopicBtn.onclick=closeTopicModal; els.topicModal.onclick=e=>{if(e.target===els.topicModal)closeTopicModal();}; els.groupInput.onkeydown=e=>{if(e.key==="Enter")els.topicInput.focus(); if(e.key==="Escape")closeTopicModal();}; els.topicInput.onkeydown=e=>{if(e.key==="Enter")saveTopicFromModal(); if(e.key==="Escape")closeTopicModal();};
   els.sendBtn.onclick=sendMessage; els.messageInput.onkeydown=e=>{if(e.key==="Enter")sendMessage(); if(e.key==="Escape"){editingMessageId=null;els.messageInput.value="";renderMessages();}};
@@ -405,7 +447,7 @@ function bind(){
   els.renameTopicBtn.onclick=()=>openTopicModal("renameTopic"); els.deleteTopicBtn.onclick=deleteTopic;
   els.editMsgBtn.onclick=()=>startEditMessage(selectedMessageId); els.copyMsgBtn.onclick=copyMessage; els.deleteMsgBtn.onclick=deleteMessage; els.pinMsgBtn.onclick=togglePin; els.favMsgBtn.onclick=toggleFavorite; els.restoreMsgBtn.onclick=restoreMessage; els.deleteForeverMsgBtn.onclick=deleteForeverMessage;
   els.pinnedBar.onclick=()=>{ const topic=currentTopic(); const pin=topic?.messages.find(m=>m.pinned&&!m.deletedAt); if(pin){ const el=els.messages.querySelector(`[data-id="${pin.id}"]`); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); } };
-  document.addEventListener("click",e=>{ if(!els.msgMenu.contains(e.target)&&!e.target.closest(".msg"))closeMessageMenu(); if(!els.chatActions.contains(e.target)&&e.target!==els.chatMenuBtn)closeChatActions(); if(!els.plusMenu.contains(e.target)&&e.target!==els.newChatBtn)closePlusMenu(); });
+  document.addEventListener("click",e=>{ if(!els.msgMenu.contains(e.target)&&!e.target.closest(".msg"))closeMessageMenu(); if(!els.chatActions.contains(e.target)&&e.target!==els.chatMenuBtn)closeChatActions(); if(!els.plusMenu.contains(e.target)&&e.target!==els.newChatBtn)closePlusMenu(); if(!els.attachMenu.contains(e.target)&&e.target!==els.attachBtn)closeAttachMenu(); });
   window.addEventListener("resize",()=>{if(window.innerWidth>900)els.body.classList.remove("chatOpen");closeMenus();});
 }
 save(); bind(); render();
