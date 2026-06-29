@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Telegram Notes</title>
+<title>Telegram Notes v1.1</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
@@ -20,7 +20,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;color:var(--tg-text);user-select:none;-webkit-user-select:none}
 body{position:fixed;inset:0}
-button,input{font:inherit}
+button,input,select{font:inherit}
 button{cursor:pointer}
 #app{width:100%;height:100%;display:flex;background:#fff}
 
@@ -30,6 +30,9 @@ button{cursor:pointer}
 #topbarTitle{font-size:28px;font-weight:700;letter-spacing:-.6px}
 .iconBtn{width:36px;height:36px;border:0;background:transparent;color:var(--tg-blue);font-size:28px;line-height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .iconBtn:active{background:#eef5ff}
+#tabs{height:43px;display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--tg-line);overflow-x:auto;background:#fff;flex-shrink:0}
+.tab{border:0;background:#f1f1f3;color:#111;border-radius:16px;padding:7px 13px;font-size:14px;white-space:nowrap}
+.tab.active{background:var(--tg-blue);color:white}
 #searchWrap{height:52px;padding:8px 10px;border-bottom:1px solid var(--tg-line);background:#fff;flex-shrink:0}
 #searchInput{width:100%;height:36px;border:0;outline:0;border-radius:10px;background:var(--tg-search);padding:0 12px;font-size:16px;color:#111}
 #chatList{flex:1;overflow:auto;background:#fff}
@@ -54,7 +57,7 @@ button{cursor:pointer}
 #chatStatus{font-size:13px;color:var(--tg-muted);margin-top:1px}
 #chatMenuBtn{border:0;background:transparent;color:var(--tg-blue);font-size:24px;width:34px;height:34px;border-radius:50%}
 #messages{position:relative;z-index:1;flex:1;overflow:auto;padding:14px 12px 10px;display:flex;flex-direction:column}
-.welcome{margin:auto;max-width:280px;background:rgba(255,255,255,.9);border-radius:16px;padding:14px 16px;text-align:center;color:#555;line-height:1.35;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.welcome{margin:auto;max-width:300px;background:rgba(255,255,255,.9);border-radius:16px;padding:14px 16px;text-align:center;color:#555;line-height:1.35;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .dateSep{align-self:center;background:rgba(255,255,255,.86);border-radius:14px;padding:5px 11px;color:#6d6d72;font-size:13px;margin:2px 0 12px;box-shadow:0 1px 1px rgba(0,0,0,.06)}
 .msg{align-self:flex-end;max-width:min(580px,78%);background:var(--tg-out);border-radius:18px 18px 4px 18px;margin:0 0 8px;padding:7px 10px 18px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.10);white-space:pre-wrap;word-break:break-word;font-size:16px;line-height:1.32}
 .msg.editing{outline:2px solid rgba(0,122,255,.35)}
@@ -67,14 +70,15 @@ button{cursor:pointer}
 /* MODALS */
 .hidden{display:none!important}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:20;display:flex;align-items:center;justify-content:center;padding:18px}
-.card{width:min(360px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.22);overflow:hidden}
+.card{width:min(380px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.22);overflow:hidden}
 .cardHead{padding:18px 18px 10px;font-size:20px;font-weight:700}
 .cardBody{padding:0 18px 18px}
-.cardInput{width:100%;height:44px;border:1px solid #d8d8dd;border-radius:12px;outline:0;padding:0 12px;font-size:16px;user-select:text;-webkit-user-select:text}
+.fieldLabel{font-size:13px;color:var(--tg-muted);margin:10px 2px 6px}
+.cardInput,.cardSelect{width:100%;height:44px;border:1px solid #d8d8dd;border-radius:12px;outline:0;padding:0 12px;font-size:16px;background:#fff;user-select:text;-webkit-user-select:text}
 .cardActions{display:flex;border-top:1px solid var(--tg-line)}
 .cardActions button{height:48px;flex:1;border:0;background:#fff;color:var(--tg-blue);font-size:16px}
 .cardActions button+button{border-left:1px solid var(--tg-line);font-weight:600}
-#msgMenu,#chatActions{position:fixed;z-index:30;background:#fff;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.20);overflow:hidden;min-width:190px}
+#msgMenu,#chatActions,#plusMenu{position:fixed;z-index:30;background:#fff;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.20);overflow:hidden;min-width:210px}
 .menuBtn{height:46px;width:100%;border:0;background:#fff;text-align:left;padding:0 16px;font-size:16px;color:#111}
 .menuBtn:active{background:#f2f2f7}
 .menuBtn.danger{color:#ff3b30}
@@ -99,8 +103,9 @@ button{cursor:pointer}
   <aside id="sidebar">
     <div id="topbar">
       <div id="topbarTitle">Чаты</div>
-      <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать чат">＋</button>
+      <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать">＋</button>
     </div>
+    <div id="tabs"></div>
     <div id="searchWrap">
       <input id="searchInput" placeholder="Поиск" autocomplete="off">
     </div>
@@ -125,15 +130,19 @@ button{cursor:pointer}
   </main>
 </div>
 
-<div id="chatModal" class="overlay hidden">
+<div id="topicModal" class="overlay hidden">
   <div class="card">
-    <div class="cardHead" id="modalTitle">Новый чат</div>
+    <div class="cardHead" id="topicModalTitle">Новая подтема</div>
     <div class="cardBody">
-      <input id="chatNameInput" class="cardInput" placeholder="Например: Выпускные / Конкурсы">
+      <div class="fieldLabel">Группа</div>
+      <input id="groupInput" class="cardInput" list="groupList" placeholder="Например: Выпускные">
+      <datalist id="groupList"></datalist>
+      <div class="fieldLabel">Подтема</div>
+      <input id="topicInput" class="cardInput" placeholder="Например: Конкурсы">
     </div>
     <div class="cardActions">
-      <button id="cancelChatBtn" type="button">Отмена</button>
-      <button id="saveChatBtn" type="button">Создать</button>
+      <button id="cancelTopicBtn" type="button">Отмена</button>
+      <button id="saveTopicBtn" type="button">Создать</button>
     </div>
   </div>
 </div>
@@ -145,27 +154,36 @@ button{cursor:pointer}
 </div>
 
 <div id="chatActions" class="hidden">
-  <button id="renameChatBtn" class="menuBtn" type="button">Переименовать чат</button>
-  <button id="deleteChatBtn" class="menuBtn danger" type="button">Удалить чат</button>
+  <button id="renameTopicBtn" class="menuBtn" type="button">Переименовать</button>
+  <button id="deleteTopicBtn" class="menuBtn danger" type="button">Удалить подтему</button>
+</div>
+
+<div id="plusMenu" class="hidden">
+  <button id="newTopicMenuBtn" class="menuBtn" type="button">Новая подтема</button>
+  <button id="newGroupMenuBtn" class="menuBtn" type="button">Новая группа</button>
 </div>
 
 <script>
 (function(){
 "use strict";
 
-const STORAGE_KEY = "telegram_notes_ios_v1";
+const STORAGE_KEY = "telegram_notes_ios_v11";
+const OLD_KEY = "telegram_notes_ios_v1";
 const $ = (id) => document.getElementById(id);
 
 const els = {
   body: document.body,
+  tabs: $("tabs"),
   chatList: $("chatList"),
   searchInput: $("searchInput"),
   newChatBtn: $("newChatBtn"),
-  chatModal: $("chatModal"),
-  modalTitle: $("modalTitle"),
-  chatNameInput: $("chatNameInput"),
-  saveChatBtn: $("saveChatBtn"),
-  cancelChatBtn: $("cancelChatBtn"),
+  topicModal: $("topicModal"),
+  topicModalTitle: $("topicModalTitle"),
+  groupInput: $("groupInput"),
+  topicInput: $("topicInput"),
+  groupList: $("groupList"),
+  saveTopicBtn: $("saveTopicBtn"),
+  cancelTopicBtn: $("cancelTopicBtn"),
   messages: $("messages"),
   messageInput: $("messageInput"),
   sendBtn: $("sendBtn"),
@@ -179,43 +197,19 @@ const els = {
   copyMsgBtn: $("copyMsgBtn"),
   deleteMsgBtn: $("deleteMsgBtn"),
   chatActions: $("chatActions"),
-  renameChatBtn: $("renameChatBtn"),
-  deleteChatBtn: $("deleteChatBtn")
+  renameTopicBtn: $("renameTopicBtn"),
+  deleteTopicBtn: $("deleteTopicBtn"),
+  plusMenu: $("plusMenu"),
+  newTopicMenuBtn: $("newTopicMenuBtn"),
+  newGroupMenuBtn: $("newGroupMenuBtn")
 };
 
 let state = load();
-let currentChatId = state.chats[0]?.id || null;
+let currentTopicId = firstTopicId();
+let currentGroupFilter = "Все";
 let selectedMessageId = null;
 let editingMessageId = null;
-let modalMode = "create";
-
-function load(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      if(parsed && Array.isArray(parsed.chats)) return parsed;
-    }
-  }catch(e){}
-  return {
-    chats:[
-      {
-        id: uid(),
-        name:"Выпускные / Конкурсы",
-        createdAt: Date.now(),
-        messages:[
-          {id:uid(), text:"Первая заметка. Нажми плюсик сверху, чтобы создать новый чат.", time: timeNow(), createdAt: Date.now()}
-        ]
-      },
-      {id:uid(), name:"Мафия / Идеи", createdAt: Date.now(), messages:[]},
-      {id:uid(), name:"Контент / VK", createdAt: Date.now(), messages:[]}
-    ]
-  };
-}
-
-function save(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
+let modalMode = "createTopic";
 
 function uid(){
   return "id_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,9);
@@ -227,56 +221,186 @@ function timeNow(){
 
 function escapeHtml(value){
   return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
 
-function currentChat(){
-  return state.chats.find(c => c.id === currentChatId) || null;
+function splitLegacyName(name){
+  const parts = String(name || "").split("/");
+  if(parts.length >= 2){
+    return {group:parts[0].trim() || "Без группы", topic:parts.slice(1).join("/").trim() || "Без названия"};
+  }
+  return {group:"Без группы", topic:String(name || "Без названия").trim()};
 }
 
-function lastMessage(chat){
-  if(!chat.messages.length) return "Нет сообщений";
-  return chat.messages[chat.messages.length - 1].text || "Вложение";
+function defaultState(){
+  return {
+    groups:[
+      {id:uid(), name:"Выпускные", createdAt:Date.now()},
+      {id:uid(), name:"Мафия", createdAt:Date.now()},
+      {id:uid(), name:"Контент", createdAt:Date.now()}
+    ],
+    topics:[]
+  };
 }
 
-function initials(name){
-  return (name || "T").trim().charAt(0).toUpperCase() || "T";
+function ensureDefaultTopics(s){
+  const getG = name => s.groups.find(g => g.name === name)?.id;
+  if(!s.topics.length){
+    s.topics.push(
+      {id:uid(), groupId:getG("Выпускные"), name:"Конкурсы", createdAt:Date.now(), messages:[{id:uid(), text:"Первая заметка. Теперь структура: группа / подтема.", time:timeNow(), createdAt:Date.now()}]},
+      {id:uid(), groupId:getG("Выпускные"), name:"Музыка", createdAt:Date.now(), messages:[]},
+      {id:uid(), groupId:getG("Мафия"), name:"Идеи", createdAt:Date.now(), messages:[]},
+      {id:uid(), groupId:getG("Контент"), name:"VK", createdAt:Date.now(), messages:[]}
+    );
+  }
+  return s;
+}
+
+function migrateFromV1(old){
+  const s = {groups:[], topics:[]};
+  const groupMap = new Map();
+  function groupId(name){
+    if(!groupMap.has(name)){
+      const id = uid();
+      groupMap.set(name,id);
+      s.groups.push({id,name,createdAt:Date.now()});
+    }
+    return groupMap.get(name);
+  }
+  (old.chats || []).forEach(chat => {
+    const parts = splitLegacyName(chat.name);
+    s.topics.push({
+      id: chat.id || uid(),
+      groupId: groupId(parts.group),
+      name: parts.topic,
+      createdAt: chat.createdAt || Date.now(),
+      messages: Array.isArray(chat.messages) ? chat.messages : []
+    });
+  });
+  return ensureDefaultTopics(s);
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.groups) && Array.isArray(parsed.topics)) return parsed;
+    }
+  }catch(e){}
+
+  try{
+    const oldRaw = localStorage.getItem(OLD_KEY);
+    if(oldRaw){
+      const old = JSON.parse(oldRaw);
+      if(old && Array.isArray(old.chats)) return migrateFromV1(old);
+    }
+  }catch(e){}
+
+  return ensureDefaultTopics(defaultState());
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function firstTopicId(){
+  return state.topics[0]?.id || null;
+}
+
+function groupById(id){
+  return state.groups.find(g => g.id === id) || null;
+}
+
+function currentTopic(){
+  return state.topics.find(t => t.id === currentTopicId) || null;
+}
+
+function fullTopicName(topic){
+  const group = groupById(topic.groupId);
+  return (group?.name || "Без группы") + " / " + topic.name;
+}
+
+function initials(topic){
+  const group = groupById(topic.groupId);
+  return (group?.name || topic.name || "T").trim().charAt(0).toUpperCase() || "T";
+}
+
+function lastMessage(topic){
+  if(!topic.messages.length) return "Нет сообщений";
+  return topic.messages[topic.messages.length - 1].text || "Вложение";
 }
 
 function render(){
-  renderChats();
+  renderGroups();
+  renderTopics();
   renderMessages();
 }
 
-function renderChats(){
+function renderGroups(){
+  const groups = ["Все", ...state.groups.map(g => g.name)];
+  if(currentGroupFilter !== "Все" && !state.groups.some(g => g.name === currentGroupFilter)){
+    currentGroupFilter = "Все";
+  }
+
+  els.tabs.innerHTML = "";
+  groups.forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "tab" + (name === currentGroupFilter ? " active" : "");
+    btn.type = "button";
+    btn.textContent = name;
+    btn.addEventListener("click", () => {
+      currentGroupFilter = name;
+      renderGroups();
+      renderTopics();
+    });
+    els.tabs.appendChild(btn);
+  });
+
+  els.groupList.innerHTML = "";
+  state.groups.forEach(g => {
+    const opt = document.createElement("option");
+    opt.value = g.name;
+    els.groupList.appendChild(opt);
+  });
+}
+
+function filteredTopics(){
   const q = els.searchInput.value.trim().toLowerCase();
-  const chats = state.chats.filter(c => !q || c.name.toLowerCase().includes(q) || c.messages.some(m => m.text.toLowerCase().includes(q)));
+  return state.topics.filter(t => {
+    const group = groupById(t.groupId);
+    const full = fullTopicName(t).toLowerCase();
+    const inGroup = currentGroupFilter === "Все" || group?.name === currentGroupFilter;
+    const inSearch = !q || full.includes(q) || t.messages.some(m => String(m.text).toLowerCase().includes(q));
+    return inGroup && inSearch;
+  });
+}
+
+function renderTopics(){
+  const topics = filteredTopics();
   els.chatList.innerHTML = "";
 
-  if(!chats.length){
-    els.chatList.innerHTML = '<div class="emptyList">Ничего не найдено</div>';
+  if(!topics.length){
+    els.chatList.innerHTML = '<div class="emptyList">Ничего не найдено<br>Нажми плюсик, чтобы создать подтему</div>';
     return;
   }
 
-  chats.forEach(chat => {
+  topics.forEach(topic => {
     const item = document.createElement("div");
-    item.className = "chatItem" + (chat.id === currentChatId ? " active" : "");
+    item.className = "chatItem" + (topic.id === currentTopicId ? " active" : "");
     item.innerHTML = `
-      <div class="avatar">${escapeHtml(initials(chat.name))}</div>
+      <div class="avatar">${escapeHtml(initials(topic))}</div>
       <div class="chatMain">
         <div class="chatRow">
-          <div class="chatName">${escapeHtml(chat.name)}</div>
-          <div class="chatTime">${escapeHtml(chat.messages.at(-1)?.time || "")}</div>
+          <div class="chatName">${escapeHtml(fullTopicName(topic))}</div>
+          <div class="chatTime">${escapeHtml(topic.messages.at(-1)?.time || "")}</div>
         </div>
-        <div class="chatPreview">${escapeHtml(lastMessage(chat))}</div>
+        <div class="chatPreview">${escapeHtml(lastMessage(topic))}</div>
       </div>
     `;
     item.addEventListener("click", () => {
-      currentChatId = chat.id;
+      currentTopicId = topic.id;
       editingMessageId = null;
       closeMenus();
       render();
@@ -288,23 +412,22 @@ function renderChats(){
 }
 
 function renderMessages(){
-  const chat = currentChat();
+  const topic = currentTopic();
 
-  if(!chat){
+  if(!topic){
     els.chatTitle.textContent = "Telegram Notes";
     els.chatStatus.textContent = "Личные заметки";
     els.headerAvatar.textContent = "T";
-    els.messages.innerHTML = '<div class="welcome">Выберите чат<br>или создайте новый</div>';
+    els.messages.innerHTML = '<div class="welcome">Выберите подтему<br>или создай новую через плюсик</div>';
     return;
   }
 
-  els.chatTitle.textContent = chat.name;
-  els.chatStatus.textContent = chat.messages.length + " заметок";
-  els.headerAvatar.textContent = initials(chat.name);
-
+  els.chatTitle.textContent = fullTopicName(topic);
+  els.chatStatus.textContent = topic.messages.length + " заметок";
+  els.headerAvatar.textContent = initials(topic);
   els.messages.innerHTML = '<div class="dateSep">Сегодня</div>';
 
-  if(!chat.messages.length){
+  if(!topic.messages.length){
     const empty = document.createElement("div");
     empty.className = "welcome";
     empty.innerHTML = "Пока пусто<br>Напиши первую заметку снизу";
@@ -312,38 +435,26 @@ function renderMessages(){
     return;
   }
 
-  chat.messages.forEach(msg => {
+  topic.messages.forEach(msg => {
     const div = document.createElement("div");
     div.className = "msg" + (editingMessageId === msg.id ? " editing" : "");
     div.dataset.id = msg.id;
     div.innerHTML = `${escapeHtml(msg.text)}<span class="msgTime">${escapeHtml(msg.time)}</span>`;
 
     let timer = null;
-    let touchX = 0;
-    let touchY = 0;
-
     div.addEventListener("touchstart", (e) => {
       if(!e.touches || !e.touches[0]) return;
-      touchX = e.touches[0].clientX;
-      touchY = e.touches[0].clientY;
-      timer = setTimeout(() => openMessageMenu(msg.id, touchX, touchY), 420);
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      timer = setTimeout(() => openMessageMenu(msg.id, x, y), 420);
     }, {passive:true});
-
-    div.addEventListener("touchmove", () => {
-      if(timer) clearTimeout(timer);
-    }, {passive:true});
-
-    div.addEventListener("touchend", () => {
-      if(timer) clearTimeout(timer);
-    }, {passive:true});
-
+    div.addEventListener("touchmove", () => timer && clearTimeout(timer), {passive:true});
+    div.addEventListener("touchend", () => timer && clearTimeout(timer), {passive:true});
     div.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       openMessageMenu(msg.id, e.clientX, e.clientY);
     });
-
     div.addEventListener("dblclick", () => startEditMessage(msg.id));
-
     els.messages.appendChild(div);
   });
 
@@ -352,47 +463,92 @@ function renderMessages(){
   });
 }
 
-function openChatModal(mode){
-  modalMode = mode || "create";
+function openPlusMenu(){
+  closeMessageMenu();
+  closeChatActions();
+  const rect = els.newChatBtn.getBoundingClientRect();
+  els.plusMenu.style.left = Math.max(8, Math.min(rect.right - 210, window.innerWidth - 218)) + "px";
+  els.plusMenu.style.top = (rect.bottom + 8) + "px";
+  els.plusMenu.classList.toggle("hidden");
+}
+
+function closePlusMenu(){
+  els.plusMenu.classList.add("hidden");
+}
+
+function openTopicModal(mode){
+  modalMode = mode || "createTopic";
   closeMenus();
 
-  const chat = currentChat();
-  els.modalTitle.textContent = modalMode === "rename" ? "Переименовать чат" : "Новый чат";
-  els.saveChatBtn.textContent = modalMode === "rename" ? "Сохранить" : "Создать";
-  els.chatNameInput.value = modalMode === "rename" && chat ? chat.name : "";
+  const topic = currentTopic();
+  const group = topic ? groupById(topic.groupId) : null;
 
-  els.chatModal.classList.remove("hidden");
+  if(modalMode === "renameTopic" && topic){
+    els.topicModalTitle.textContent = "Переименовать";
+    els.saveTopicBtn.textContent = "Сохранить";
+    els.groupInput.value = group?.name || "";
+    els.topicInput.value = topic.name;
+  }else if(modalMode === "createGroup"){
+    els.topicModalTitle.textContent = "Новая группа";
+    els.saveTopicBtn.textContent = "Создать";
+    els.groupInput.value = "";
+    els.topicInput.value = "Общее";
+  }else{
+    els.topicModalTitle.textContent = "Новая подтема";
+    els.saveTopicBtn.textContent = "Создать";
+    els.groupInput.value = currentGroupFilter !== "Все" ? currentGroupFilter : (group?.name || "");
+    els.topicInput.value = "";
+  }
+
+  els.topicModal.classList.remove("hidden");
   setTimeout(() => {
-    els.chatNameInput.focus();
-    els.chatNameInput.select();
+    els.groupInput.focus();
+    els.groupInput.select();
   }, 50);
 }
 
-function closeChatModal(){
-  els.chatModal.classList.add("hidden");
-  els.chatNameInput.value = "";
-  modalMode = "create";
+function closeTopicModal(){
+  els.topicModal.classList.add("hidden");
+  els.groupInput.value = "";
+  els.topicInput.value = "";
+  modalMode = "createTopic";
 }
 
-function saveChatFromModal(){
-  const name = els.chatNameInput.value.trim();
-  if(!name){
-    els.chatNameInput.focus();
+function findOrCreateGroup(name){
+  let group = state.groups.find(g => g.name.toLowerCase() === name.toLowerCase());
+  if(group) return group;
+  group = {id:uid(), name, createdAt:Date.now()};
+  state.groups.push(group);
+  return group;
+}
+
+function saveTopicFromModal(){
+  const groupName = els.groupInput.value.trim();
+  const topicName = els.topicInput.value.trim() || "Общее";
+  if(!groupName){
+    els.groupInput.focus();
     return;
   }
 
-  if(modalMode === "rename"){
-    const chat = currentChat();
-    if(chat) chat.name = name;
+  if(modalMode === "renameTopic"){
+    const topic = currentTopic();
+    if(topic){
+      const group = findOrCreateGroup(groupName);
+      topic.groupId = group.id;
+      topic.name = topicName;
+      currentGroupFilter = "Все";
+    }
   }else{
-    const chat = {id: uid(), name, createdAt: Date.now(), messages: []};
-    state.chats.unshift(chat);
-    currentChatId = chat.id;
+    const group = findOrCreateGroup(groupName);
+    const topic = {id:uid(), groupId:group.id, name:topicName, createdAt:Date.now(), messages:[]};
+    state.topics.unshift(topic);
+    currentTopicId = topic.id;
+    currentGroupFilter = "Все";
     if(window.innerWidth <= 900) els.body.classList.add("chatOpen");
   }
 
   save();
-  closeChatModal();
+  closeTopicModal();
   render();
 }
 
@@ -400,21 +556,21 @@ function sendMessage(){
   const text = els.messageInput.value.trim();
   if(!text) return;
 
-  let chat = currentChat();
-  if(!chat){
-    openChatModal("create");
+  const topic = currentTopic();
+  if(!topic){
+    openTopicModal("createTopic");
     return;
   }
 
   if(editingMessageId){
-    const msg = chat.messages.find(m => m.id === editingMessageId);
+    const msg = topic.messages.find(m => m.id === editingMessageId);
     if(msg){
       msg.text = text;
       msg.editedAt = Date.now();
     }
     editingMessageId = null;
   }else{
-    chat.messages.push({id:uid(), text, time:timeNow(), createdAt:Date.now()});
+    topic.messages.push({id:uid(), text, time:timeNow(), createdAt:Date.now()});
   }
 
   els.messageInput.value = "";
@@ -425,7 +581,7 @@ function sendMessage(){
 function openMessageMenu(messageId, x, y){
   selectedMessageId = messageId;
   closeChatActions();
-
+  closePlusMenu();
   els.msgMenu.style.left = Math.max(8, Math.min(x, window.innerWidth - 198)) + "px";
   els.msgMenu.style.top = Math.max(8, Math.min(y, window.innerHeight - 148)) + "px";
   els.msgMenu.classList.remove("hidden");
@@ -437,8 +593,9 @@ function closeMessageMenu(){
 
 function openChatActions(){
   closeMessageMenu();
+  closePlusMenu();
   const rect = els.chatMenuBtn.getBoundingClientRect();
-  els.chatActions.style.left = Math.max(8, Math.min(rect.right - 190, window.innerWidth - 198)) + "px";
+  els.chatActions.style.left = Math.max(8, Math.min(rect.right - 210, window.innerWidth - 218)) + "px";
   els.chatActions.style.top = (rect.bottom + 6) + "px";
   els.chatActions.classList.toggle("hidden");
 }
@@ -450,12 +607,13 @@ function closeChatActions(){
 function closeMenus(){
   closeMessageMenu();
   closeChatActions();
+  closePlusMenu();
 }
 
 function startEditMessage(id){
-  const chat = currentChat();
-  if(!chat) return;
-  const msg = chat.messages.find(m => m.id === id);
+  const topic = currentTopic();
+  if(!topic) return;
+  const msg = topic.messages.find(m => m.id === id);
   if(!msg) return;
 
   editingMessageId = id;
@@ -469,9 +627,9 @@ function startEditMessage(id){
 }
 
 function deleteMessage(){
-  const chat = currentChat();
-  if(!chat || !selectedMessageId) return;
-  chat.messages = chat.messages.filter(m => m.id !== selectedMessageId);
+  const topic = currentTopic();
+  if(!topic || !selectedMessageId) return;
+  topic.messages = topic.messages.filter(m => m.id !== selectedMessageId);
   if(editingMessageId === selectedMessageId){
     editingMessageId = null;
     els.messageInput.value = "";
@@ -483,8 +641,8 @@ function deleteMessage(){
 }
 
 async function copyMessage(){
-  const chat = currentChat();
-  const msg = chat?.messages.find(m => m.id === selectedMessageId);
+  const topic = currentTopic();
+  const msg = topic?.messages.find(m => m.id === selectedMessageId);
   if(!msg) return;
   try{
     await navigator.clipboard.writeText(msg.text);
@@ -499,35 +657,47 @@ async function copyMessage(){
   closeMenus();
 }
 
-function deleteChat(){
-  const chat = currentChat();
-  if(!chat) return;
-  const ok = confirm("Удалить чат «" + chat.name + "»?");
+function deleteTopic(){
+  const topic = currentTopic();
+  if(!topic) return;
+  const ok = confirm("Удалить подтему «" + fullTopicName(topic) + "»?");
   if(!ok) return;
 
-  state.chats = state.chats.filter(c => c.id !== chat.id);
-  currentChatId = state.chats[0]?.id || null;
+  state.topics = state.topics.filter(t => t.id !== topic.id);
+  const usedGroupIds = new Set(state.topics.map(t => t.groupId));
+  state.groups = state.groups.filter(g => usedGroupIds.has(g.id));
+  currentTopicId = state.topics[0]?.id || null;
   editingMessageId = null;
   selectedMessageId = null;
   save();
   closeMenus();
 
-  if(!currentChatId) els.body.classList.remove("chatOpen");
+  if(!currentTopicId) els.body.classList.remove("chatOpen");
   render();
 }
 
 function bind(){
-  els.newChatBtn.addEventListener("click", () => openChatModal("create"));
-  els.saveChatBtn.addEventListener("click", saveChatFromModal);
-  els.cancelChatBtn.addEventListener("click", closeChatModal);
+  els.newChatBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openPlusMenu();
+  });
+  els.newTopicMenuBtn.addEventListener("click", () => openTopicModal("createTopic"));
+  els.newGroupMenuBtn.addEventListener("click", () => openTopicModal("createGroup"));
 
-  els.chatModal.addEventListener("click", (e) => {
-    if(e.target === els.chatModal) closeChatModal();
+  els.saveTopicBtn.addEventListener("click", saveTopicFromModal);
+  els.cancelTopicBtn.addEventListener("click", closeTopicModal);
+
+  els.topicModal.addEventListener("click", (e) => {
+    if(e.target === els.topicModal) closeTopicModal();
   });
 
-  els.chatNameInput.addEventListener("keydown", (e) => {
-    if(e.key === "Enter") saveChatFromModal();
-    if(e.key === "Escape") closeChatModal();
+  els.groupInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") els.topicInput.focus();
+    if(e.key === "Escape") closeTopicModal();
+  });
+  els.topicInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") saveTopicFromModal();
+    if(e.key === "Escape") closeTopicModal();
   });
 
   els.sendBtn.addEventListener("click", sendMessage);
@@ -540,7 +710,7 @@ function bind(){
     }
   });
 
-  els.searchInput.addEventListener("input", renderChats);
+  els.searchInput.addEventListener("input", renderTopics);
 
   els.backBtn.addEventListener("click", () => {
     els.body.classList.remove("chatOpen");
@@ -552,8 +722,8 @@ function bind(){
     openChatActions();
   });
 
-  els.renameChatBtn.addEventListener("click", () => openChatModal("rename"));
-  els.deleteChatBtn.addEventListener("click", deleteChat);
+  els.renameTopicBtn.addEventListener("click", () => openTopicModal("renameTopic"));
+  els.deleteTopicBtn.addEventListener("click", deleteTopic);
 
   els.editMsgBtn.addEventListener("click", () => startEditMessage(selectedMessageId));
   els.copyMsgBtn.addEventListener("click", copyMessage);
@@ -562,6 +732,7 @@ function bind(){
   document.addEventListener("click", (e) => {
     if(!els.msgMenu.contains(e.target) && !e.target.closest(".msg")) closeMessageMenu();
     if(!els.chatActions.contains(e.target) && e.target !== els.chatMenuBtn) closeChatActions();
+    if(!els.plusMenu.contains(e.target) && e.target !== els.newChatBtn) closePlusMenu();
   });
 
   window.addEventListener("resize", () => {
