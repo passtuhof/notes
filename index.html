@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Telegram Notes v2.0 UI</title>
+<title>Заметки</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
@@ -482,14 +482,23 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 #tabs .tab.systemTab{gap:0!important}
 #tabs .tab.systemTab::before,#tabs .tab.systemTab::after{content:none!important;display:none!important}
 #tabs .tab.systemTab .tabIcon,#tabs .tab.systemTab .avatar,#tabs .tab.systemTab b,#tabs .tab.systemTab [class*=Icon]{display:none!important}
+
+
+/* USER PATCH: clean creation UI */
+#newChatBtn{font-size:28px!important;font-weight:400!important;line-height:1!important}
+#newChatBtn:before{content:none!important;display:none!important}
+#plusMenu .menuBtn{padding-left:18px!important}
+#newTopicMenuBtn:before,#newGroupMenuBtn:before{content:none!important;display:none!important}
+.folderItem .avatar{background:linear-gradient(145deg,#8e8e93,#636366)!important}
+.noteItem .avatar{background:linear-gradient(145deg,#62c6ff,#168ac2)!important}
 </style>
 </head>
 <body>
 <div id="app">
   <aside id="sidebar">
     <div id="topbar">
-      <div id="topbarTitle">Telegram Notes</div>
-      <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать">＋</button>
+      <div id="topbarTitle">Заметки</div>
+      <button id="newChatBtn" class="iconBtn" type="button" aria-label="Создать">+</button>
     </div>
     <div id="tabs"><button class="tab systemTab active" type="button">Все</button><button class="tab systemTab" type="button">Избранное</button><button class="tab systemTab" type="button">Архив</button><button class="tab systemTab" type="button">Корзина</button></div>
     <div id="searchWrap">
@@ -503,7 +512,7 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
       <button id="backBtn" type="button">‹ Чаты</button>
       <div id="headerAvatar">T</div>
       <div id="headerInfo">
-        <div id="chatTitle">Telegram Notes</div>
+        <div id="chatTitle">Заметки</div>
         <div id="chatStatus">Личные заметки</div>
       </div>
       <button id="chatMenuBtn" type="button">⋯</button>
@@ -525,13 +534,12 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 
 <div id="topicModal" class="overlay hidden">
   <div class="card">
-    <div class="cardHead" id="topicModalTitle">Новая подтема</div>
+    <div class="cardHead" id="topicModalTitle">Новая заметка</div>
     <div class="cardBody">
-      <div class="fieldLabel">Группа</div>
-      <input id="groupInput" class="cardInput" list="groupList" placeholder="Например: Выпускные">
+      <input id="groupInput" class="cardInput hidden" list="groupList" autocomplete="off">
       <datalist id="groupList"></datalist>
-      <div class="fieldLabel">Подтема</div>
-      <input id="topicInput" class="cardInput" placeholder="Например: Конкурсы">
+      <div class="fieldLabel" id="nameFieldLabel">Название</div>
+      <input id="topicInput" class="cardInput" placeholder="Введите название" autocomplete="off">
     </div>
     <div class="cardActions">
       <button id="cancelTopicBtn" type="button">Отмена</button>
@@ -560,8 +568,8 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 </div>
 
 <div id="plusMenu" class="hidden">
-  <button id="newTopicMenuBtn" class="menuBtn" type="button">Новая подтема</button>
-  <button id="newGroupMenuBtn" class="menuBtn" type="button">Новая группа</button>
+  <button id="newTopicMenuBtn" class="menuBtn" type="button">Заметка</button>
+  <button id="newGroupMenuBtn" class="menuBtn" type="button">Папка</button>
 </div>
 
 
@@ -630,7 +638,10 @@ function openImageViewer(src){ els.viewerImg.src=src; els.mediaViewer.classList.
 function closeImageViewer(){ els.mediaViewer.classList.add("hidden"); els.viewerImg.src=""; }
 
 function splitLegacyName(name){ const parts=String(name||"").split("/"); return parts.length>=2 ? {group:parts[0].trim()||"Без группы", topic:parts.slice(1).join("/").trim()||"Без названия"} : {group:"Без группы", topic:String(name||"Без названия").trim()}; }
-function defaultState(){ const now=Date.now(); const g1={id:uid(),name:"Выпускные",createdAt:now}, g2={id:uid(),name:"Мафия",createdAt:now}, g3={id:uid(),name:"Контент",createdAt:now}; return {groups:[g1,g2,g3],topics:[{id:uid(),groupId:g1.id,name:"Конкурсы",createdAt:now,messages:[{id:uid(),text:"Версия 2.0 UI: новый интерфейс под Telegram iOS — список чатов, пузыри, фон, нижняя панель и меню.",time:timeNow(),createdAt:now,pinned:true}]},{id:uid(),groupId:g1.id,name:"Музыка",createdAt:now,messages:[]},{id:uid(),groupId:g2.id,name:"Идеи",createdAt:now,messages:[]},{id:uid(),groupId:g3.id,name:"VK",createdAt:now,messages:[]}]}; }
+function defaultState(){
+  const now=Date.now();
+  return {groups:[],topics:[]};
+}
 function normalize(s){
   if(!s || !Array.isArray(s.groups) || !Array.isArray(s.topics)) return defaultState();
   s.topics.forEach((t,i)=>{ t.order = Number.isFinite(t.order) ? t.order : i; t.archived = !!t.archived; t.messages = Array.isArray(t.messages) ? t.messages : []; t.messages.forEach(m=>{ m.createdAt=m.createdAt||Date.now(); m.time=m.time||timeNow(); m.pinned=!!m.pinned; m.favorite=!!m.favorite; m.attachments=Array.isArray(m.attachments)?m.attachments:[]; }); });
@@ -646,9 +657,11 @@ function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function firstTopicId(){ return sortedTopicsAll()[0]?.id || state.topics[0]?.id || null; }
 function groupById(id){ return state.groups.find(g=>g.id===id)||null; }
 function currentTopic(){ return state.topics.find(t=>t.id===currentTopicId)||null; }
-function fullTopicName(topic){ const group=groupById(topic.groupId); return (group?.name||"Без группы")+" / "+topic.name; }
+function fullTopicName(topic){ return topic?.name || "Без названия"; }
 function initials(topic){ const group=groupById(topic.groupId); return (group?.name||topic.name||"T").trim().charAt(0).toUpperCase()||"T"; }
 function sortedTopicsAll(){ return [...state.topics].sort((a,b)=>(a.order??0)-(b.order??0)); }
+function sortedGroupsAll(){ return [...state.groups].sort((a,b)=>(a.order??0)-(b.order??0) || (a.createdAt||0)-(b.createdAt||0)); }
+function folderInitials(group){ return (group?.name||"П").trim().charAt(0).toUpperCase()||"П"; }
 function activeMessages(topic){ return topic.messages.filter(m => showTrash ? !!m.deletedAt : !m.deletedAt); }
 function visibleMessages(topic){
   let arr = activeMessages(topic);
@@ -718,16 +731,13 @@ function renderGroups(){
 }
 function filteredTopics(){
   const q=els.searchInput.value.trim().toLowerCase();
-  const archiveMode = currentView==="archive" || !!currentTopic()?.archived;
   return sortedTopicsAll().filter(t=>{
-    const group=groupById(t.groupId);
-    const full=fullTopicName(t).toLowerCase();
-    const inGroup=currentGroupFilter==="Все"||group?.name===currentGroupFilter;
-    const inSearch=!q||full.includes(q)||t.messages.some(m=>!m.deletedAt&&String(m.text).toLowerCase().includes(q));
-    const inArchive = archiveMode ? !!t.archived : !t.archived;
-    if(currentView==="favorites") return !t.archived && inGroup && inSearch && t.messages.some(m=>m.favorite&&!m.deletedAt);
-    if(currentView==="trash") return !t.archived && inGroup && inSearch && t.messages.some(m=>m.deletedAt);
-    return inArchive&&inGroup&&inSearch;
+    const name=String(t.name||"").toLowerCase();
+    const inSearch=!q||name.includes(q)||t.messages.some(m=>!m.deletedAt&&String(m.text).toLowerCase().includes(q));
+    if(currentView==="favorites") return !t.archived && inSearch && t.messages.some(m=>m.favorite&&!m.deletedAt);
+    if(currentView==="trash") return !t.archived && inSearch && t.messages.some(m=>m.deletedAt);
+    if(currentView==="archive") return !!t.archived && inSearch;
+    return !t.archived && inSearch;
   });
 }
 function countFavorites(){ return state.topics.reduce((n,t)=>n+t.messages.filter(m=>m.favorite&&!m.deletedAt).length,0); }
@@ -754,9 +764,35 @@ function renderSystemItem(kind){
   els.chatList.appendChild(item);
 }
 function renderTopics(){
-  const topics=filteredTopics(); els.chatList.innerHTML="";
-  if(!topics.length){ const empty=document.createElement("div"); empty.className="emptyList"; empty.innerHTML=(currentView==="archive"?"Архив пуст<br>Свайпни подтему влево или нажми ⋯ → В архив":currentView==="favorites"?"Избранного пока нет<br>Отметь сообщение звездой":currentView==="trash"?"Корзина пустая<br>Удалённые сообщения появятся здесь":"Подтем не найдено<br>Нажми плюсик, чтобы создать подтему"); els.chatList.appendChild(empty); return; }
-  topics.forEach(topic=>{ const item=document.createElement("div"); item.className="chatItem"+(topic.archived?" archived":"")+(currentTopicId===topic.id?" active":""); item.draggable=true; item.dataset.id=topic.id; item.style.position="relative"; item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(initials(topic))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(fullTopicName(topic))}</div><div class="chatTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</div></div><div class="chatPreview">${escapeHtml(lastMessage(topic))}</div></div><button class="topicMore" type="button">⋯</button><div class="swipeHint">Отпусти: ${topic.archived?"вернуть":"в архив"}</div>`;
+  const topics=filteredTopics();
+  els.chatList.innerHTML="";
+  const q=els.searchInput.value.trim().toLowerCase();
+  if(currentView==="topic"){
+    const folders=sortedGroupsAll().filter(g=>!g.hiddenDefault).filter(g=>!q || String(g.name||"").toLowerCase().includes(q));
+    folders.forEach(group=>{
+      const item=document.createElement("div");
+      item.className="chatItem folderItem";
+      item.dataset.groupId=group.id;
+      item.style.position="relative";
+      const count=state.topics.filter(t=>t.groupId===group.id && !t.archived).length;
+      item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(folderInitials(group))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(group.name)}</div><div class="chatTime">${count}</div></div><div class="chatPreview">Папка</div></div>`;
+      item.addEventListener("click",()=>{
+        const first=sortedTopicsAll().find(t=>t.groupId===group.id && !t.archived);
+        if(first){ currentTopicId=first.id; currentView="topic"; render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); }
+      });
+      els.chatList.appendChild(item);
+    });
+  }
+  if(!topics.length){
+    if(!els.chatList.children.length){
+      const empty=document.createElement("div");
+      empty.className="emptyList";
+      empty.innerHTML=(currentView==="archive"?"Архив пуст":currentView==="favorites"?"Избранного пока нет":currentView==="trash"?"Корзина пустая":"Пока пусто<br>Нажми +, чтобы создать папку или заметку");
+      els.chatList.appendChild(empty);
+    }
+    return;
+  }
+  topics.forEach(topic=>{ const item=document.createElement("div"); item.className="chatItem noteItem"+(topic.archived?" archived":"")+(currentTopicId===topic.id?" active":""); item.draggable=true; item.dataset.id=topic.id; item.style.position="relative"; item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${escapeHtml(initials(topic))}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${escapeHtml(fullTopicName(topic))}</div><div class="chatTime">${escapeHtml(topic.messages.filter(m=>!m.deletedAt).at(-1)?.time||"")}</div></div><div class="chatPreview">${escapeHtml(lastMessage(topic))}</div></div><button class="topicMore" type="button">⋯</button><div class="swipeHint">Отпусти: ${topic.archived?"вернуть":"в архив"}</div>`;
     item.querySelector(".topicMore").addEventListener("click",e=>{e.stopPropagation();openTopicActions(topic.id,e.clientX,e.clientY);});
     bindSwipeArchive(item, topic.id);
     item.addEventListener("click",()=>{ if(dragTopicId) return; currentView="topic"; currentTopicId=topic.id; editingMessageId=null; showTrash=false; showFavoritesOnly=false; closeMenus(); render(); if(window.innerWidth<=900) els.body.classList.add("chatOpen"); setTimeout(()=>els.messageInput.focus(),80); });
@@ -831,7 +867,7 @@ function renderMessages(){
   }
   els.messageInput.disabled=false; els.attachBtn.disabled=false; els.messageInput.placeholder="Сообщение"; els.sendBtn.disabled=false;
   const topic=currentTopic();
-  if(!topic){ els.chatTitle.textContent="Telegram Notes"; els.chatStatus.textContent="Личные заметки"; els.headerAvatar.textContent="T"; els.pinnedBar.classList.add("hidden"); els.messages.innerHTML='<div class="welcome">Выберите подтему<br>или создай новую через плюсик</div>'; return; }
+  if(!topic){ els.chatTitle.textContent="Заметки"; els.chatStatus.textContent="Личные заметки"; els.headerAvatar.textContent="З"; els.pinnedBar.classList.add("hidden"); els.messages.innerHTML='<div class="welcome">Выберите заметку<br>или создай новую через +</div>'; return; }
   els.chatTitle.textContent=fullTopicName(topic); const live=topic.messages.filter(m=>!m.deletedAt).length, trash=topic.messages.filter(m=>m.deletedAt).length; els.chatStatus.textContent=(showTrash?`Корзина: ${trash}`:showFavoritesOnly?`Избранное: ${topic.messages.filter(m=>m.favorite&&!m.deletedAt).length}`:`${live} заметок`); els.headerAvatar.textContent=initials(topic);
   els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
   const pinned=topic.messages.filter(m=>m.pinned&&!m.deletedAt); if(pinned.length&&!showTrash){ els.pinnedBar.innerHTML=`<span>📌</span><div class="pinnedText">${escapeHtml(pinned[0].text || attachmentLabel(pinned[0]))}</div>`; els.pinnedBar.classList.remove("hidden"); } else els.pinnedBar.classList.add("hidden");
@@ -846,10 +882,55 @@ function renderMessages(){
 }
 function openPlusMenu(){ closeMessageMenu(); closeChatActions(); const r=els.newChatBtn.getBoundingClientRect(); els.plusMenu.style.left=Math.max(8,Math.min(r.right-210,window.innerWidth-218))+"px"; els.plusMenu.style.top=(r.bottom+8)+"px"; els.plusMenu.classList.toggle("hidden"); }
 function closePlusMenu(){ els.plusMenu.classList.add("hidden"); }
-function openTopicModal(mode){ modalMode=mode||"createTopic"; closeMenus(); const topic=currentTopic(); const group=topic?groupById(topic.groupId):null; if(modalMode==="renameTopic"&&topic){ els.topicModalTitle.textContent="Переименовать"; els.saveTopicBtn.textContent="Сохранить"; els.groupInput.value=group?.name||""; els.topicInput.value=topic.name; } else if(modalMode==="createGroup"){ els.topicModalTitle.textContent="Новая группа"; els.saveTopicBtn.textContent="Создать"; els.groupInput.value=""; els.topicInput.value="Общее"; } else { els.topicModalTitle.textContent="Новая подтема"; els.saveTopicBtn.textContent="Создать"; els.groupInput.value=currentGroupFilter!=="Все"?currentGroupFilter:(group?.name||""); els.topicInput.value=""; } els.topicModal.classList.remove("hidden"); setTimeout(()=>{els.groupInput.focus();els.groupInput.select();},50); }
+function openTopicModal(mode){
+  modalMode=mode||"createNote";
+  closeMenus();
+  if(modalMode==="renameTopic"){
+    const topic=currentTopic();
+    els.topicModalTitle.textContent="Переименовать";
+    els.saveTopicBtn.textContent="Сохранить";
+    els.topicInput.value=topic?.name||"";
+  } else if(modalMode==="createFolder"){
+    els.topicModalTitle.textContent="Новая папка";
+    els.saveTopicBtn.textContent="Сохранить";
+    els.topicInput.value="";
+  } else {
+    els.topicModalTitle.textContent="Новая заметка";
+    els.saveTopicBtn.textContent="Сохранить";
+    els.topicInput.value="";
+  }
+  els.groupInput.value="";
+  els.topicModal.classList.remove("hidden");
+  setTimeout(()=>{els.topicInput.focus();els.topicInput.select();},50);
+}
 function closeTopicModal(){ els.topicModal.classList.add("hidden"); els.groupInput.value=""; els.topicInput.value=""; modalMode="createTopic"; }
 function findOrCreateGroup(name){ let group=state.groups.find(g=>g.name.toLowerCase()===name.toLowerCase()); if(group) return group; group={id:uid(),name,createdAt:Date.now()}; state.groups.push(group); return group; }
-function saveTopicFromModal(){ const groupName=els.groupInput.value.trim(); const topicName=els.topicInput.value.trim()||"Общее"; if(!groupName){els.groupInput.focus();return;} if(modalMode==="renameTopic"){ const topic=currentTopic(); if(topic){ const group=findOrCreateGroup(groupName); topic.groupId=group.id; topic.name=topicName; currentGroupFilter="Все"; } } else { const group=findOrCreateGroup(groupName); const min=Math.min(0,...state.topics.map(t=>t.order??0)); const topic={id:uid(),groupId:group.id,name:topicName,createdAt:Date.now(),order:min-1,messages:[]}; state.topics.unshift(topic); currentTopicId=topic.id; currentView="topic"; currentGroupFilter="Все"; if(window.innerWidth<=900) els.body.classList.add("chatOpen"); } save(); closeTopicModal(); render(); }
+function saveTopicFromModal(){
+  const name=els.topicInput.value.trim();
+  if(!name){els.topicInput.focus();return;}
+  if(modalMode==="renameTopic"){
+    const topic=currentTopic();
+    if(topic) topic.name=name;
+  } else if(modalMode==="createFolder"){
+    const max=Math.max(-1,...state.groups.map(g=>g.order??-1));
+    state.groups.unshift({id:uid(),name,createdAt:Date.now(),order:0});
+    state.groups.forEach((g,i)=>g.order=i);
+    currentView="topic";
+    showTrash=false;
+    showFavoritesOnly=false;
+  } else {
+    let group=state.groups.find(g=>g.name==="Без папки");
+    if(!group){ group={id:uid(),name:"Без папки",createdAt:Date.now(),order:999999,hiddenDefault:true}; state.groups.push(group); }
+    const max=Math.max(-1,...state.topics.map(t=>t.order??-1));
+    const topic={id:uid(),groupId:group.id,name,createdAt:Date.now(),order:max+1,messages:[]};
+    state.topics.push(topic);
+    currentTopicId=topic.id;
+    currentView="topic";
+    showTrash=false;
+    showFavoritesOnly=false;
+  }
+  save(); closeTopicModal(); render();
+}
 function sendMessage(){ if(currentView!=="topic") return; const text=els.messageInput.value.trim(); if(!text) return; const topic=currentTopic(); if(!topic){openTopicModal("createTopic");return;} if(showTrash){ showTrash=false; } if(editingMessageId){ const msg=topic.messages.find(m=>m.id===editingMessageId&&!m.deletedAt); if(msg){msg.text=text;msg.editedAt=Date.now();} editingMessageId=null; } else topic.messages.push({id:uid(),text,time:timeNow(),createdAt:Date.now(),pinned:false,favorite:false,attachments:[]}); els.messageInput.value=""; save(); render(); }
 let selectedMessageTopicId = null;
 function selectedMsg(){ const topic= selectedMessageTopicId ? state.topics.find(t=>t.id===selectedMessageTopicId) : currentTopic(); return topic?.messages.find(m=>m.id===selectedMessageId); }
@@ -918,7 +999,7 @@ function bind(){
   els.messages.addEventListener("click",e=>{ const img=e.target.closest(".mediaImg"); if(img) openImageViewer(img.src); });
   els.closeViewerBtn.onclick=closeImageViewer; els.mediaViewer.onclick=e=>{ if(e.target===els.mediaViewer) closeImageViewer(); };
 
-  els.newChatBtn.onclick=e=>{e.stopPropagation();openPlusMenu();}; els.newTopicMenuBtn.onclick=()=>openTopicModal("createTopic"); els.newGroupMenuBtn.onclick=()=>openTopicModal("createGroup");
+  els.newChatBtn.onclick=e=>{e.stopPropagation();openPlusMenu();}; els.newTopicMenuBtn.onclick=()=>openTopicModal("createNote"); els.newGroupMenuBtn.onclick=()=>openTopicModal("createFolder");
   els.saveTopicBtn.onclick=saveTopicFromModal; els.cancelTopicBtn.onclick=closeTopicModal; els.topicModal.onclick=e=>{if(e.target===els.topicModal)closeTopicModal();}; els.groupInput.onkeydown=e=>{if(e.key==="Enter")els.topicInput.focus(); if(e.key==="Escape")closeTopicModal();}; els.topicInput.onkeydown=e=>{if(e.key==="Enter")saveTopicFromModal(); if(e.key==="Escape")closeTopicModal();};
   els.sendBtn.onclick=sendMessage; els.messageInput.onkeydown=e=>{if(e.key==="Enter")sendMessage(); if(e.key==="Escape"){editingMessageId=null;els.messageInput.value="";renderMessages();}};
   els.searchInput.oninput=renderTopics; els.msgSearchInput.oninput=renderMessages;
