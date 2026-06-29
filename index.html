@@ -563,580 +563,281 @@ width:100%;
 
 /* ===== JS БУДЕТ В ЧАСТИ 3 ===== */
 
+<script>
 const STORAGE_KEY = "telegram_notes_v1";
 
-let data = JSON.parse(
-localStorage.getItem(STORAGE_KEY)
-) || {
-    chats:[]
-};
-
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { chats: [] };
 let currentChatId = null;
 let editingMessageId = null;
-
-const chatList = document.getElementById("chatList");
-const messages = document.getElementById("messages");
-
-const newChatBtn = document.getElementById("newChatBtn");
-const chatModal = document.getElementById("chatModal");
-
-const chatNameInput =
-document.getElementById("chatNameInput");
-
-const saveChatBtn =
-document.getElementById("saveChatBtn");
-
-const cancelChatBtn =
-document.getElementById("cancelChatBtn");
-
-const messageInput =
-document.getElementById("messageInput");
-
-const sendBtn =
-document.getElementById("sendBtn");
-
-const searchInput =
-document.getElementById("searchInput");
-
-const chatTitle =
-document.getElementById("chatTitle");
-
-const chatAvatar =
-document.getElementById("chatAvatar");
-
-const menu =
-document.getElementById("messageMenu");
-
-const editBtn =
-document.getElementById("editBtn");
-
-const deleteBtn =
-document.getElementById("deleteBtn");
-
 let selectedMessageId = null;
 
-/* ========================= */
+const $ = id => document.getElementById(id);
+
+const chatList = $("chatList");
+const messages = $("messages");
+const newChatBtn = $("newChatBtn");
+const chatModal = $("chatModal");
+const chatNameInput = $("chatNameInput");
+const saveChatBtn = $("saveChatBtn");
+const cancelChatBtn = $("cancelChatBtn");
+const messageInput = $("messageInput");
+const sendBtn = $("sendBtn");
+const searchInput = $("searchInput");
+const chatTitle = $("chatTitle");
+const chatAvatar = $("chatAvatar");
+const menu = $("messageMenu");
+const editBtn = $("editBtn");
+const deleteBtn = $("deleteBtn");
 
 function save(){
-
-localStorage.setItem(
-STORAGE_KEY,
-JSON.stringify(data)
-);
-
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
-
-/* ========================= */
 
 function uid(){
-
-return Date.now().toString() +
-Math.random().toString(36).slice(2);
-
+  return Date.now().toString() + Math.random().toString(36).slice(2);
 }
 
-/* ========================= */
-
-function timeString(){
-
-const d = new Date();
-
-return d.toLocaleTimeString(
-[],
-{
-hour:"2-digit",
-minute:"2-digit"
-}
-);
-
+function nowTime(){
+  return new Date().toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
-/* ========================= */
+function escapeHtml(text = ""){
+  return String(text)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+}
+
+function getCurrentChat(){
+  return data.chats.find(c => c.id === currentChatId);
+}
 
 function renderChats(){
+  chatList.innerHTML = "";
 
-chatList.innerHTML = "";
+  const q = searchInput.value.trim().toLowerCase();
 
-const query =
-searchInput.value.trim().toLowerCase();
+  data.chats
+    .filter(chat => !q || chat.name.toLowerCase().includes(q))
+    .forEach(chat => {
+      const last = chat.messages.length
+        ? chat.messages[chat.messages.length - 1].text
+        : "Нет сообщений";
 
-data.chats
-.filter(chat=>{
+      const item = document.createElement("div");
+      item.className = "chatItem" + (chat.id === currentChatId ? " active" : "");
 
-if(!query) return true;
+      item.innerHTML = `
+        <div class="chatAvatar">${escapeHtml(chat.name[0] || "T")}</div>
+        <div class="chatContent">
+          <div class="chatTitle">${escapeHtml(chat.name)}</div>
+          <div class="chatPreview">${escapeHtml(last)}</div>
+        </div>
+        <div class="chatTime">${chat.messages.length ? chat.messages[chat.messages.length - 1].time : ""}</div>
+      `;
 
-return chat.name
-.toLowerCase()
-.includes(query);
+      item.addEventListener("click", () => {
+        currentChatId = chat.id;
+        renderChats();
+        renderMessages();
 
-})
-.forEach(chat=>{
+        if (window.innerWidth < 900) {
+          document.body.classList.add("chatOpened");
+        }
+      });
 
-const item =
-document.createElement("div");
-
-item.className =
-"chatItem" +
-(currentChatId===chat.id
-? " active"
-: "");
-
-const last =
-chat.messages.length
-? chat.messages[
-chat.messages.length-1
-].text
-: "Нет сообщений";
-
-item.innerHTML = `
-<div class="chatAvatar">
-${chat.name.charAt(0).toUpperCase()}
-</div>
-
-<div class="chatContent">
-
-<div class="chatTitle">
-${escapeHtml(chat.name)}
-</div>
-
-<div class="chatPreview">
-${escapeHtml(last)}
-</div>
-
-</div>
-
-<div class="chatTime">
-
-${chat.messages.length
-? chat.messages[
-chat.messages.length-1
-].time
-: ""}
-
-</div>
-`;
-
-item.onclick = ()=>{
-
-currentChatId = chat.id;
-
-renderChats();
-renderMessages();
-
-if(window.innerWidth<900){
-
-document.body
-.classList
-.add("chatOpened");
-
+      chatList.appendChild(item);
+    });
 }
-
-};
-
-chatList.appendChild(item);
-
-});
-
-}
-
-/* ========================= */
 
 function renderMessages(){
+  const chat = getCurrentChat();
 
-const chat =
-data.chats.find(
-c=>c.id===currentChatId
-);
+  if (!chat) {
+    chatTitle.textContent = "Telegram Notes";
+    chatAvatar.textContent = "T";
+    messages.innerHTML = `<div class="welcome">Выберите чат<br>или создайте новый</div>`;
+    return;
+  }
 
-if(!chat){
+  chatTitle.textContent = chat.name;
+  chatAvatar.textContent = chat.name[0] || "T";
+  messages.innerHTML = `<div class="dateSeparator">Сегодня</div>`;
 
-messages.innerHTML = `
-<div class="welcome">
-Выберите чат
-</div>
-`;
+  chat.messages.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "message";
+    div.dataset.id = msg.id;
 
-chatTitle.textContent =
-"Telegram Notes";
+    div.innerHTML = `
+      <div class="messageText">${escapeHtml(msg.text)}</div>
+      <div class="messageTime">${escapeHtml(msg.time)}</div>
+    `;
 
-chatAvatar.textContent = "T";
+    let timer = null;
 
-return;
+    div.addEventListener("touchstart", e => {
+      const touch = e.touches[0];
+      timer = setTimeout(() => {
+        openMenu(msg.id, touch.clientX, touch.clientY);
+      }, 500);
+    });
 
+    div.addEventListener("touchend", () => clearTimeout(timer));
+    div.addEventListener("touchmove", () => clearTimeout(timer));
+
+    div.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      openMenu(msg.id, e.clientX, e.clientY);
+    });
+
+    messages.appendChild(div);
+  });
+
+  messages.scrollTop = messages.scrollHeight;
 }
-
-chatTitle.textContent =
-chat.name;
-
-chatAvatar.textContent =
-chat.name
-.charAt(0)
-.toUpperCase();
-
-messages.innerHTML = "";
-
-const date =
-document.createElement("div");
-
-date.className =
-"dateSeparator";
-
-date.textContent =
-"Сегодня";
-
-messages.appendChild(date);
-
-chat.messages.forEach(msg=>{
-
-const div =
-document.createElement("div");
-
-div.className =
-"message";
-
-div.dataset.id =
-msg.id;
-
-div.innerHTML = `
-<div class="messageText">
-${escapeHtml(msg.text)}
-</div>
-
-<div class="messageTime">
-${msg.time}
-</div>
-`;
-
-let pressTimer;
-
-div.addEventListener(
-"touchstart",
-()=>{
-
-pressTimer =
-setTimeout(()=>{
-
-openMenu(
-msg.id,
-event.touches[0].clientX,
-event.touches[0].clientY
-);
-
-},500);
-
-}
-);
-
-div.addEventListener(
-"touchend",
-()=>{
-
-clearTimeout(
-pressTimer
-);
-
-}
-);
-
-div.addEventListener(
-"contextmenu",
-e=>{
-
-e.preventDefault();
-
-openMenu(
-msg.id,
-e.clientX,
-e.clientY
-);
-
-}
-);
-
-messages.appendChild(div);
-
-});
-
-messages.scrollTop =
-messages.scrollHeight;
-
-}
-
-/* ========================= */
-
-function addMessage(){
-
-const text =
-messageInput.value.trim();
-
-if(!text) return;
-
-const chat =
-data.chats.find(
-c=>c.id===currentChatId
-);
-
-if(!chat) return;
-
-if(editingMessageId){
-
-const msg =
-chat.messages.find(
-m=>m.id===editingMessageId
-);
-
-if(msg){
-
-msg.text = text;
-
-}
-
-editingMessageId = null;
-
-}else{
-
-chat.messages.push({
-
-id:uid(),
-text,
-time:timeString()
-
-});
-
-}
-
-messageInput.value = "";
-
-save();
-
-renderChats();
-renderMessages();
-
-}
-
-/* ========================= */
 
 function createChat(){
+  const name = chatNameInput.value.trim();
 
-const name =
-chatNameInput.value.trim();
+  if (!name) {
+    chatNameInput.focus();
+    return;
+  }
 
-if(!name) return;
+  const chat = {
+    id: uid(),
+    name,
+    messages: []
+  };
 
-const chat = {
+  data.chats.unshift(chat);
+  currentChatId = chat.id;
 
-id:uid(),
-name,
-messages:[]
+  chatNameInput.value = "";
+  chatModal.classList.add("hidden");
 
-};
-
-data.chats.unshift(chat);
-
-currentChatId = chat.id;
-
-chatNameInput.value = "";
-
-chatModal.classList.add(
-"hidden"
-);
-
-save();
-
-renderChats();
-renderMessages();
-
+  save();
+  renderChats();
+  renderMessages();
 }
 
-/* ========================= */
+function addMessage(){
+  const text = messageInput.value.trim();
+  if (!text) return;
 
-function openMenu(
-messageId,
-x,
-y
-){
+  const chat = getCurrentChat();
+  if (!chat) return;
 
-selectedMessageId =
-messageId;
+  if (editingMessageId) {
+    const msg = chat.messages.find(m => m.id === editingMessageId);
+    if (msg) msg.text = text;
+    editingMessageId = null;
+  } else {
+    chat.messages.push({
+      id: uid(),
+      text,
+      time: nowTime()
+    });
+  }
 
-menu.style.left =
-x + "px";
+  messageInput.value = "";
 
-menu.style.top =
-y + "px";
-
-menu.classList.remove(
-"hidden"
-);
-
+  save();
+  renderChats();
+  renderMessages();
 }
 
-/* ========================= */
+function openMenu(id, x, y){
+  selectedMessageId = id;
+  menu.style.left = Math.min(x, window.innerWidth - 190) + "px";
+  menu.style.top = Math.min(y, window.innerHeight - 100) + "px";
+  menu.classList.remove("hidden");
+}
 
 function closeMenu(){
-
-menu.classList.add(
-"hidden"
-);
-
+  menu.classList.add("hidden");
 }
 
-/* ========================= */
-
-editBtn.onclick = ()=>{
-
-const chat =
-data.chats.find(
-c=>c.id===currentChatId
-);
-
-if(!chat) return;
-
-const msg =
-chat.messages.find(
-m=>m.id===selectedMessageId
-);
-
-if(!msg) return;
-
-messageInput.value =
-msg.text;
-
-editingMessageId =
-msg.id;
-
-closeMenu();
-
-};
-
-/* ========================= */
-
-deleteBtn.onclick = ()=>{
-
-const chat =
-data.chats.find(
-c=>c.id===currentChatId
-);
-
-if(!chat) return;
-
-chat.messages =
-chat.messages.filter(
-m=>m.id!==selectedMessageId
-);
-
-save();
-
-renderChats();
-renderMessages();
-
-closeMenu();
-
-};
-
-/* ========================= */
-
-function escapeHtml(text){
-
-return text
-.replaceAll("&","&amp;")
-.replaceAll("<","&lt;")
-.replaceAll(">","&gt;")
-.replaceAll('"',"&quot;");
-
-}
-
-/* ========================= */
-
-newChatBtn.onclick = ()=>{
-
-chatModal.classList.remove(
-"hidden"
-);
-
-chatNameInput.focus();
-
-};
-
-cancelChatBtn.onclick = ()=>{
-
-chatModal.classList.add(
-"hidden"
-);
-
-};
-
-saveChatBtn.onclick =
-createChat;
-
-sendBtn.onclick =
-addMessage;
-
-messageInput.addEventListener(
-"keydown",
-e=>{
-
-if(e.key==="Enter"){
-
-addMessage();
-
-}
-
-}
-);
-
-searchInput.addEventListener(
-"input",
-renderChats
-);
-
-document.addEventListener(
-"click",
-e=>{
-
-if(
-!menu.contains(e.target)
-){
-
-closeMenu();
-
-}
-
-}
-);
-
-/* ========================= */
-
-if(data.chats.length===0){
-
-data.chats.push({
-
-id:uid(),
-name:"Выпускные / Конкурсы",
-messages:[
-{
-id:uid(),
-text:"Первая заметка",
-time:timeString()
-}
-]
-
+newChatBtn.addEventListener("click", () => {
+  chatModal.classList.remove("hidden");
+  setTimeout(() => chatNameInput.focus(), 50);
 });
 
-currentChatId =
-data.chats[0].id;
+cancelChatBtn.addEventListener("click", () => {
+  chatModal.classList.add("hidden");
+  chatNameInput.value = "";
+});
 
-save();
+saveChatBtn.addEventListener("click", createChat);
 
-}else{
+chatNameInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") createChat();
+});
 
-currentChatId =
-data.chats[0].id;
+sendBtn.addEventListener("click", addMessage);
 
+messageInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") addMessage();
+});
+
+searchInput.addEventListener("input", renderChats);
+
+editBtn.addEventListener("click", () => {
+  const chat = getCurrentChat();
+  if (!chat) return;
+
+  const msg = chat.messages.find(m => m.id === selectedMessageId);
+  if (!msg) return;
+
+  messageInput.value = msg.text;
+  editingMessageId = msg.id;
+  closeMenu();
+  messageInput.focus();
+});
+
+deleteBtn.addEventListener("click", () => {
+  const chat = getCurrentChat();
+  if (!chat) return;
+
+  chat.messages = chat.messages.filter(m => m.id !== selectedMessageId);
+
+  save();
+  renderChats();
+  renderMessages();
+  closeMenu();
+});
+
+document.addEventListener("click", e => {
+  if (!menu.contains(e.target) && !e.target.closest(".message")) {
+    closeMenu();
+  }
+});
+
+if (!data.chats.length) {
+  data.chats.push({
+    id: uid(),
+    name: "Выпускные / Конкурсы",
+    messages: [
+      {
+        id: uid(),
+        text: "Первая заметка",
+        time: nowTime()
+      }
+    ]
+  });
+  save();
 }
+
+currentChatId = data.chats[0].id;
 
 renderChats();
 renderMessages();
+</script>
   
 </script>
 
