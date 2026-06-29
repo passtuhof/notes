@@ -68,9 +68,9 @@
     .fileBox{display:flex;align-items:center;gap:10px}
     .fileIcon{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center;font-size:22px}
     .fileName{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .fileSize{font-size:12px;color:var(--muted)}
+    .fileSize{font-size:12px;color:var(--tg-muted)}
     .sheet{position:absolute;left:10px;right:10px;bottom:86px;background:#1d2935;border:1px solid var(--line);border-radius:20px;padding:10px;display:none;box-shadow:var(--shadow);z-index:20}
-    .sheetGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .sheetGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
     .sheetBtn{border:0;border-radius:15px;background:rgba(255,255,255,.07);color:var(--tg-text);padding:12px 8px;font-size:13px;min-height:72px}
     .sheetBtn span{display:block;font-size:25px;margin-bottom:6px}
     .modalBg{position:absolute;inset:0;background:rgba(0,0,0,.48);display:none;align-items:flex-end;z-index:50}
@@ -86,9 +86,11 @@
     .hiddenInput{display:none}
     .recording{position:absolute;left:12px;right:12px;bottom:86px;background:#301c24;border:1px solid rgba(255,91,110,.35);border-radius:18px;padding:12px;display:none;z-index:25}
     .recRow{display:flex;align-items:center;gap:10px}
-    .recDot{width:12px;height:12px;background:var(--danger);border-radius:50%;animation:pulse 1s infinite}
-    .recText{flex:1}
-    .recStop{border:0;border-radius:12px;background:var(--danger);color:white;padding:10px 14px}
+    .recDot{width:12px;height:12px;background:var(--danger);border-radius:50%;animation:pulse 1s infinite;flex:none}
+    .recText{font-size:13px;color:#ffd7dd;white-space:nowrap}
+    .recStop{border:0;border-radius:12px;background:var(--danger);color:white;padding:10px 14px;flex:none;font-weight:700}
+    .eq{height:34px;flex:1;border-radius:10px;background:rgba(0,0,0,.22);overflow:hidden;display:flex;align-items:center;padding:0 8px}
+    .eq canvas{width:100%;height:34px;display:block}
     @keyframes pulse{50%{opacity:.35}}
     @media(min-width:821px){
       .phone{height:96dvh;margin:auto;border-radius:18px;overflow:hidden}
@@ -124,10 +126,8 @@
 
     <div class="sheet" id="attachSheet">
       <div class="sheetGrid">
-        <button class="sheetBtn" data-action="photo"><span>🖼️</span>Фото</button>
-        <button class="sheetBtn" data-action="cameraPhoto"><span>📷</span>Снять фото</button>
-        <button class="sheetBtn" data-action="cameraVideo"><span>🎥</span>Снять видео</button>
-        <button class="sheetBtn" data-action="video"><span>🎬</span>Видео</button>
+        <button class="sheetBtn" data-action="media"><span>🖼️</span>Фото/Видео</button>
+        <button class="sheetBtn" data-action="camera"><span>📷</span>Камера</button>
         <button class="sheetBtn" data-action="circle"><span>⭕</span>Кружок</button>
         <button class="sheetBtn" data-action="file"><span>📎</span>Файл</button>
         <button class="sheetBtn" data-action="audio"><span>🎙️</span>Аудио</button>
@@ -137,16 +137,16 @@
     <div class="recording" id="recordingBox">
       <div class="recRow">
         <div class="recDot"></div>
-        <div class="recText" id="recText">Идет запись аудио...</div>
-        <button class="recStop" id="recStop">Стоп</button>
+        <div class="recText" id="recText">Запись</div>
+        <div class="eq"><canvas id="eqCanvas" width="260" height="34"></canvas></div>
+        <button type="button" class="recStop" id="recStop">Стоп</button>
       </div>
     </div>
 
+    <input class="hiddenInput" id="mediaInput" type="file" accept="image/*,video/*" multiple />
+    <input class="hiddenInput" id="cameraInput" type="file" accept="image/*,video/*" capture="environment" />
+    <input class="hiddenInput" id="circleInput" type="file" accept="video/*" capture="user" />
     <input class="hiddenInput" id="fileInput" type="file" />
-    <input class="hiddenInput" id="photoInput" type="file" accept="image/*" />
-    <input class="hiddenInput" id="cameraPhotoInput" type="file" accept="image/*" capture="environment" />
-    <input class="hiddenInput" id="videoInput" type="file" accept="video/*" />
-    <input class="hiddenInput" id="cameraVideoInput" type="file" accept="video/*" capture="environment" />
 
     <div class="modalBg" id="modalBg">
       <div class="modal">
@@ -164,7 +164,8 @@
 
 <script>
 (() => {
-  const KEY = 'telegram_notes_v1';
+  const KEY = 'telegram_notes_v2';
+  const OLD_KEY = 'telegram_notes_v1';
   const $ = id => document.getElementById(id);
 
   let db = load();
@@ -172,16 +173,26 @@
   let createType = 'note';
   let mediaRecorder = null;
   let audioChunks = [];
+  let recStream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let eqAnimation = null;
+  let recStartedAt = 0;
+  let recTimer = null;
 
   function load(){
-    try { return JSON.parse(localStorage.getItem(KEY)) || seed(); }
-    catch(e){ return seed(); }
+    try {
+      const saved = localStorage.getItem(KEY) || localStorage.getItem(OLD_KEY);
+      return saved ? JSON.parse(saved) : seed();
+    } catch(e){ return seed(); }
   }
-  function seed(){
-    return { items: [], messages: {} };
-  }
+  function seed(){ return { items: [], messages: {} }; }
   function save(){
-    localStorage.setItem(KEY, JSON.stringify(db));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(db));
+    } catch(e) {
+      alert('Память браузера заполнена. Текст сохранился не полностью. Для фото/видео нужно будет перейти на IndexedDB или сервер.');
+    }
   }
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
   function now(){ return new Date().toISOString(); }
@@ -214,7 +225,7 @@
   }
 
   function render(){
-    const title = $('screenTitle'), sub = $('screenSub'), content = $('content');
+    const title = $('screenTitle'), sub = $('screenSub');
     $('backBtn').style.display = route.type === 'root' ? 'none' : 'flex';
     $('composer').style.display = route.type === 'note' ? 'flex' : 'none';
     $('fab').style.display = route.type === 'note' ? 'none' : 'block';
@@ -314,7 +325,7 @@
   function openCreate(){
     $('modalBg').style.display = 'flex';
     $('nameInput').value = '';
-    $('nameInput').focus();
+    setTimeout(() => $('nameInput').focus(), 50);
     const row = $('choiceRow');
     const folderAllowed = canCreateFolder();
     createType = 'note';
@@ -407,12 +418,21 @@
       r.readAsDataURL(file);
     });
   }
-  async function handleFile(input, kind){
-    const file = input.files[0];
+  async function handleFiles(input, forcedKind){
+    const files = Array.from(input.files || []);
     input.value = '';
-    if(!file) return;
-    const data = await fileToData(file);
-    addMessage({kind, data, name:file.name, size:file.size});
+    if(!files.length) return;
+    for(const file of files){
+      const data = await fileToData(file);
+      let kind = forcedKind;
+      if(!kind){
+        if(file.type.startsWith('image/')) kind = 'image';
+        else if(file.type.startsWith('video/')) kind = 'video';
+        else if(file.type.startsWith('audio/')) kind = 'audio';
+        else kind = 'file';
+      }
+      addMessage({kind, data, name:file.name, size:file.size});
+    }
   }
 
   function formatSize(bytes){
@@ -444,6 +464,7 @@
     const text = $('msgInput').value.trim();
     if(!text) return;
     $('msgInput').value = '';
+    $('msgInput').style.height = '42px';
     addMessage({kind:'text', text});
   };
   $('msgInput').addEventListener('input', e => {
@@ -466,48 +487,147 @@
     if(!btn) return;
     $('attachSheet').style.display = 'none';
     const a = btn.dataset.action;
-    if(a === 'photo') $('photoInput').click();
-    if(a === 'cameraPhoto') $('cameraPhotoInput').click();
-    if(a === 'video') $('videoInput').click();
-    if(a === 'cameraVideo') $('cameraVideoInput').click();
-    if(a === 'circle') $('cameraVideoInput').click(), $('cameraVideoInput').dataset.kind = 'circle';
+    if(a === 'media') $('mediaInput').click();
+    if(a === 'camera') $('cameraInput').click();
+    if(a === 'circle') $('circleInput').click();
     if(a === 'file') $('fileInput').click();
     if(a === 'audio') startAudio();
   });
 
-  $('photoInput').onchange = () => handleFile($('photoInput'),'image');
-  $('cameraPhotoInput').onchange = () => handleFile($('cameraPhotoInput'),'image');
-  $('videoInput').onchange = () => handleFile($('videoInput'),'video');
-  $('cameraVideoInput').onchange = () => {
-    const kind = $('cameraVideoInput').dataset.kind || 'video';
-    $('cameraVideoInput').dataset.kind = '';
-    handleFile($('cameraVideoInput'), kind);
-  };
-  $('fileInput').onchange = () => handleFile($('fileInput'),'file');
+  $('mediaInput').onchange = () => handleFiles($('mediaInput'));
+  $('cameraInput').onchange = () => handleFiles($('cameraInput'));
+  $('circleInput').onchange = () => handleFiles($('circleInput'), 'circle');
+  $('fileInput').onchange = () => handleFiles($('fileInput'));
 
   async function startAudio(){
+    if(mediaRecorder && mediaRecorder.state === 'recording') return;
     if(!navigator.mediaDevices?.getUserMedia){
       alert('Запись аудио не поддерживается в этом браузере');
       return;
     }
     try{
-      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      recStream = await navigator.mediaDevices.getUserMedia({audio:true});
       audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t=>t.stop());
-        const blob = new Blob(audioChunks, {type:'audio/webm'});
-        const data = await blobToData(blob);
-        addMessage({kind:'audio', data, name:'audio.webm', size:blob.size});
-        $('recordingBox').style.display = 'none';
-      };
+
+      let options = {};
+      if(window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options = { mimeType:'audio/webm;codecs=opus' };
+      } else if(window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) {
+        options = { mimeType:'audio/mp4' };
+      }
+
+      mediaRecorder = new MediaRecorder(recStream, options);
+      mediaRecorder.addEventListener('dataavailable', e => {
+        if(e.data && e.data.size > 0) audioChunks.push(e.data);
+      });
+      mediaRecorder.addEventListener('stop', finishAudioRecording);
+      mediaRecorder.addEventListener('error', () => stopAudioUI());
+
+      setupEqualizer(recStream);
       mediaRecorder.start();
+
+      recStartedAt = Date.now();
       $('recordingBox').style.display = 'block';
+      updateRecTimer();
+      recTimer = setInterval(updateRecTimer, 500);
     }catch(e){
       alert('Не удалось получить доступ к микрофону');
+      stopAudioUI();
     }
   }
+
+  function updateRecTimer(){
+    const sec = Math.floor((Date.now() - recStartedAt) / 1000);
+    const m = String(Math.floor(sec / 60)).padStart(2,'0');
+    const s = String(sec % 60).padStart(2,'0');
+    $('recText').textContent = `${m}:${s}`;
+  }
+
+  async function finishAudioRecording(){
+    const type = audioChunks[0]?.type || mediaRecorder?.mimeType || 'audio/webm';
+    const blob = new Blob(audioChunks, {type});
+    const ext = type.includes('mp4') ? 'm4a' : 'webm';
+    const data = await blobToData(blob);
+    stopAudioUI();
+    if(blob.size > 0) addMessage({kind:'audio', data, name:`audio.${ext}`, size:blob.size});
+  }
+
+  function stopAudio(){
+    if(mediaRecorder && mediaRecorder.state === 'recording'){
+      try { mediaRecorder.requestData(); } catch(e){}
+      setTimeout(() => {
+        try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){ stopAudioUI(); }
+      }, 80);
+    } else {
+      stopAudioUI();
+    }
+  }
+
+  function stopAudioUI(){
+    $('recordingBox').style.display = 'none';
+    if(recTimer) clearInterval(recTimer);
+    recTimer = null;
+    if(eqAnimation) cancelAnimationFrame(eqAnimation);
+    eqAnimation = null;
+    if(audioCtx){
+      try { audioCtx.close(); } catch(e){}
+      audioCtx = null;
+    }
+    if(recStream){
+      recStream.getTracks().forEach(t => t.stop());
+      recStream = null;
+    }
+    drawIdleEqualizer();
+  }
+
+  function setupEqualizer(stream){
+    const canvas = $('eqCanvas');
+    const ctx = canvas.getContext('2d');
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const bars = 18;
+
+    function draw(){
+      analyser.getByteFrequencyData(data);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const gap = 4;
+      const barW = (canvas.width - gap * (bars - 1)) / bars;
+      for(let i=0;i<bars;i++){
+        const v = data[Math.floor(i * data.length / bars)] / 255;
+        const h = Math.max(3, v * canvas.height);
+        const x = i * (barW + gap);
+        const y = (canvas.height - h) / 2;
+        ctx.fillStyle = 'rgba(42,171,238,.95)';
+        roundRect(ctx, x, y, barW, h, 4);
+        ctx.fill();
+      }
+      eqAnimation = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  function drawIdleEqualizer(){
+    const canvas = $('eqCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
   function blobToData(blob){
     return new Promise(res => {
       const r = new FileReader();
@@ -515,10 +635,14 @@
       r.readAsDataURL(blob);
     });
   }
-  $('recStop').onclick = () => {
-    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  };
 
+  $('recStop').addEventListener('click', stopAudio);
+  $('recStop').addEventListener('touchend', e => {
+    e.preventDefault();
+    stopAudio();
+  }, {passive:false});
+
+  drawIdleEqualizer();
   render();
 })();
 </script>
