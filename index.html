@@ -108,7 +108,7 @@ button{cursor:pointer}
 .pinnedBar span:first-child{color:var(--tg-blue);font-size:15px}
 .pinnedText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#555}
 .msg.pin{border-top:3px solid rgba(0,122,255,.42)}
-.msg.fav:before{content:"⭐";position:absolute;left:8px;bottom:3px;font-size:11px;opacity:.9}
+.msg.fav:before{content:"";position:absolute;left:8px;bottom:3px;font-size:11px;opacity:.9}
 .msg.pin:after{content:"📌";position:absolute;left:24px;bottom:3px;font-size:11px;opacity:.9}
 .msg.deleted{background:#f2f2f7;color:#777;border-radius:18px}
 .trashNotice{align-self:center;background:rgba(255,255,255,.9);border-radius:14px;padding:7px 12px;color:#666;font-size:13px;margin:0 0 10px;box-shadow:0 1px 1px rgba(0,0,0,.06)}
@@ -191,16 +191,16 @@ button{cursor:pointer}
 #editMsgBtn:before{content:"✎";position:absolute;left:17px;color:#007aff}
 #copyMsgBtn:before{content:"⧉";position:absolute;left:17px;color:#007aff}
 #pinMsgBtn:before{content:"📌";position:absolute;left:15px}
-#favMsgBtn:before{content:"⭐";position:absolute;left:15px}
-#deleteMsgBtn:before,#deleteForeverMsgBtn:before,#deleteTopicBtn:before,#deleteTopicActionBtn:before{content:"🗑";position:absolute;left:15px}
+#favMsgBtn:before{content:"";position:absolute;left:15px}
+#deleteMsgBtn:before,#deleteForeverMsgBtn:before,#deleteTopicBtn:before,#deleteTopicActionBtn:before{content:"";position:absolute;left:15px}
 #restoreMsgBtn:before{content:"↩";position:absolute;left:17px;color:#007aff}
 #toggleMsgSearchBtn:before{content:"🔍";position:absolute;left:15px}
-#toggleFavoritesBtn:before{content:"⭐";position:absolute;left:15px}
-#toggleTrashBtn:before{content:"🗑";position:absolute;left:15px}
+#toggleFavoritesBtn:before{content:"";position:absolute;left:15px}
+#toggleTrashBtn:before{content:"";position:absolute;left:15px}
 #sortDateBtn:before{content:"↕";position:absolute;left:17px;color:#007aff}
 #renameTopicBtn:before,#renameTopicActionBtn:before{content:"✎";position:absolute;left:17px;color:#007aff}
-#archiveTopicBtn:before{content:"📦";position:absolute;left:15px}
-#newTopicMenuBtn:before{content:"💬";position:absolute;left:15px}
+#archiveTopicBtn:before{content:"";position:absolute;left:15px}
+#newTopicMenuBtn:before{content:"";position:absolute;left:15px}
 #newGroupMenuBtn:before{content:"📁";position:absolute;left:15px}
 
 #attachMenu{
@@ -481,6 +481,24 @@ html,body{background:var(--ios-page)!important;font-family:-apple-system,BlinkMa
 /* HARD FIX: no icons in system tabs */
 #tabs .tab.systemTab .tabIcon{display:none!important;width:0!important;margin:0!important;padding:0!important;font-size:0!important}
 #tabs .tab.systemTab{gap:0!important}
+
+/* FINAL HARD REMOVE: no icons/signs in top system tabs */
+#tabs .tab.systemTab .tabIcon,
+#tabs .tab.systemTab .avatar,
+#tabs .tab.systemTab [class*=Icon],
+.chatItem.system .avatar.hiddenSystemAvatar{
+  display:none!important;
+  width:0!important;
+  min-width:0!important;
+  height:0!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  font-size:0!important;
+  line-height:0!important;
+}
+#tabs .tab.systemTab::before, #tabs .tab.systemTab::after{content:none!important;display:none!important}
+#tabs .tab.systemTab{gap:0!important}
 </style>
 </head>
 <body>
@@ -742,10 +760,10 @@ function renderSystemItem(kind){
   const isArchive=kind==="archive";
   item.className="chatItem system "+(isFav?"fav":isTrash?"trash":"archive")+(active?" active":"");
   const title=isFav?"Избранное":isTrash?"Корзина":"Архив";
-  const icon=isFav?"⭐":isTrash?"🗑":"📦";
+  const icon="";
   const count=isFav?countFavorites():isTrash?countTrash():countArchive();
   const preview=isFav?"Все избранные заметки":isTrash?"Удалённые заметки":"Спрятанные подтемы";
-  item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar">${icon}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${title}</div><div class="chatTime">${count}</div></div><div class="chatPreview">${preview}</div></div>`;
+  item.innerHTML=`<div class="dragHandle">≡</div><div class="avatar hiddenSystemAvatar">${icon}</div><div class="chatMain"><div class="chatRow"><div class="chatName">${title}</div><div class="chatTime">${count}</div></div><div class="chatPreview">${preview}</div></div>`;
   item.addEventListener("click",()=>{
     currentView=kind;
     currentTopicId = kind==="archive" ? (state.topics.find(t=>t.archived)?.id||null) : currentTopicId;
@@ -807,7 +825,7 @@ function systemMessages(kind){
 }
 function renderMessages(){
   if(currentView==="archive" && !currentTopicId){
-    els.chatTitle.textContent="Архив"; els.chatStatus.textContent="Сюда попадают скрытые подтемы"; els.headerAvatar.textContent="📦";
+    els.chatTitle.textContent="Архив"; els.chatStatus.textContent="Сюда попадают скрытые подтемы"; els.headerAvatar.textContent="";
     els.msgSearchWrap.classList.add("hidden"); els.pinnedBar.classList.add("hidden"); els.messages.innerHTML=`<div class="emptyState">Архив пуст. Открой список чатов, свайпни подтему влево или нажми ⋯ возле подтемы.</div>`;
     els.messageInput.disabled=true; els.attachBtn.disabled=true; els.sendBtn.disabled=true; return;
   }
@@ -815,7 +833,7 @@ function renderMessages(){
     const isFav=currentView==="favorites";
     els.chatTitle.textContent=isFav?"Избранное":"Корзина";
     els.chatStatus.textContent=(isFav?countFavorites():countTrash())+" заметок";
-    els.headerAvatar.textContent=isFav?"⭐":"🗑";
+    els.headerAvatar.textContent="";
     els.msgSearchWrap.classList.toggle("open", msgSearchOpen);
     els.pinnedBar.classList.add("hidden");
     els.messageInput.disabled=true; els.attachBtn.disabled=true;
@@ -964,5 +982,40 @@ save(); bind(); render();
   setTimeout(forceSystemTabs, 300);
 })();
 </script>
+
+<script>
+// FINAL HARD REMOVE: физически чистит вкладки от любых значков, даже если другой скрипт перерисует их позже.
+(function(){
+  var cleaning=false;
+  var allowed = {"Все":1,"Избранное":1,"Архив":1,"Корзина":1};
+  var emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
+  function cleanTabs(){
+    if(cleaning) return;
+    cleaning=true;
+    try{
+      var tabs=document.getElementById('tabs');
+      if(!tabs) return;
+      tabs.querySelectorAll('.tabIcon,[class*=Icon],.avatar').forEach(function(n){ n.remove(); });
+      tabs.querySelectorAll('.systemTab').forEach(function(btn){
+        var raw=(btn.textContent||'').replace(emojiRe,'').replace(/\s+/g,' ').trim();
+        var text=raw, count='';
+        var m=raw.match(/^(Все|Избранное|Архив|Корзина)\s*(\d+)?$/);
+        if(m){ text=m[1]; count=m[2]||''; }
+        else {
+          Object.keys(allowed).some(function(k){ if(raw.indexOf(k)!==-1){ text=k; return true; } });
+        }
+        var cleanHtml='<span>'+text+'</span>'+(count?'<b>'+count+'</b>':'');
+        if(btn.innerHTML!==cleanHtml) btn.innerHTML=cleanHtml;
+      });
+    } finally { cleaning=false; }
+  }
+  document.addEventListener('DOMContentLoaded', cleanTabs);
+  window.addEventListener('load', cleanTabs);
+  setTimeout(cleanTabs,0); setTimeout(cleanTabs,50); setTimeout(cleanTabs,300); setTimeout(cleanTabs,1000);
+  var mo=new MutationObserver(cleanTabs);
+  document.addEventListener('DOMContentLoaded', function(){ var tabs=document.getElementById('tabs'); if(tabs) mo.observe(tabs,{childList:true,subtree:true,characterData:true}); });
+})();
+</script>
+
 </body>
 </html>
